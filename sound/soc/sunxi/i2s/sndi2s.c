@@ -32,10 +32,10 @@ struct sndi2s_priv {
 	struct snd_pcm_substream *slave_substream;
 };
 
-static int i2s_used = 0;
-#define sndi2s_RATES  (SNDRV_PCM_RATE_8000_192000|SNDRV_PCM_RATE_KNOT)
-#define sndi2s_FORMATS (SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_S16_LE | \
-		                     SNDRV_PCM_FMTBIT_S18_3LE | SNDRV_PCM_FMTBIT_S20_3LE)
+static int i2s_used;
+#define SNDI2S_RATES	(SNDRV_PCM_RATE_8000_192000 | SNDRV_PCM_RATE_KNOT)
+#define SNDI2S_FORMATS	(SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_S16_LE | \
+			SNDRV_PCM_FMTBIT_S18_3LE | SNDRV_PCM_FMTBIT_S20_3LE)
 
 static int sndi2s_mute(struct snd_soc_dai *dai, int mute)
 {
@@ -62,45 +62,45 @@ static int sndi2s_hw_params(struct snd_pcm_substream *substream,
 }
 
 static int sndi2s_set_dai_sysclk(struct snd_soc_dai *codec_dai,
-				  int clk_id, unsigned int freq, int dir)
+					int clk_id, unsigned int freq, int dir)
 {
 	return 0;
 }
 
-static int sndi2s_set_dai_clkdiv(struct snd_soc_dai *codec_dai, int div_id, int div)
+static int sndi2s_set_dai_clkdiv(struct snd_soc_dai *codec_dai, int div_id,
+									int div)
 {
 	return 0;
 }
 
-static int sndi2s_set_dai_fmt(struct snd_soc_dai *codec_dai,
-			       unsigned int fmt)
+static int sndi2s_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 {
 	return 0;
 }
 
 struct snd_soc_dai_ops sndi2s_dai_ops = {
-	.startup = sndi2s_startup,
-	.shutdown = sndi2s_shutdown,
-	.hw_params = sndi2s_hw_params,
-	.digital_mute = sndi2s_mute,
-	.set_sysclk = sndi2s_set_dai_sysclk,
-	.set_clkdiv = sndi2s_set_dai_clkdiv,
-	.set_fmt = sndi2s_set_dai_fmt,
+	.startup		= sndi2s_startup,
+	.shutdown		= sndi2s_shutdown,
+	.hw_params		= sndi2s_hw_params,
+	.digital_mute		= sndi2s_mute,
+	.set_sysclk		= sndi2s_set_dai_sysclk,
+	.set_clkdiv		= sndi2s_set_dai_clkdiv,
+	.set_fmt		= sndi2s_set_dai_fmt,
 };
 
 struct snd_soc_dai_driver sndi2s_dai = {
-	.name = "sndi2s",
+	.name			= "sndi2s",
 	/* playback capabilities */
-	.playback = {
-		.stream_name = "Playback",
-		.channels_min = 1,
-		.channels_max = 2,
-		.rates = sndi2s_RATES,
-		.formats = sndi2s_FORMATS,
+	.playback		= {
+		.stream_name	= "Playback",
+		.channels_min	= 1,
+		.channels_max	= 2,
+		.rates		= SNDI2S_RATES,
+		.formats	= SNDI2S_FORMATS,
 	},
 	/* pcm operations */
-	.ops = &sndi2s_dai_ops,
-	.symmetric_rates = 1,
+	.ops			= &sndi2s_dai_ops,
+	.symmetric_rates	= 1,
 };
 EXPORT_SYMBOL(sndi2s_dai);
 
@@ -109,9 +109,8 @@ static int sndi2s_soc_probe(struct snd_soc_codec *codec)
 	struct sndi2s_priv *sndi2s;
 
 	sndi2s = kzalloc(sizeof(struct sndi2s_priv), GFP_KERNEL);
-	if(sndi2s == NULL){
+	if (sndi2s == NULL)
 		return -ENOMEM;
-	}
 	snd_soc_codec_set_drvdata(codec, sndi2s);
 
 	return 0;
@@ -128,13 +127,14 @@ static int sndi2s_soc_remove(struct snd_soc_codec *codec)
 }
 
 static struct snd_soc_codec_driver soc_codec_dev_sndi2s = {
-	.probe 	=	sndi2s_soc_probe,
-	.remove =   sndi2s_soc_remove,
+	.probe	=	sndi2s_soc_probe,
+	.remove	=	sndi2s_soc_remove,
 };
 
 static int __devinit sndi2s_codec_probe(struct platform_device *pdev)
 {
-	return snd_soc_register_codec(&pdev->dev, &soc_codec_dev_sndi2s, &sndi2s_dai, 1);
+	return snd_soc_register_codec(&pdev->dev, &soc_codec_dev_sndi2s,
+								&sndi2s_dai, 1);
 }
 
 static int __devexit sndi2s_codec_remove(struct platform_device *pdev)
@@ -162,21 +162,26 @@ static int __init sndi2s_codec_init(void)
 	int err = 0;
 	int ret = 0;
 
-	ret = script_parser_fetch("i2s_para","i2s_used", &i2s_used, sizeof(int));
+	ret = script_parser_fetch("i2s_para", "i2s_used", &i2s_used,
+								sizeof(int));
 	if (ret) {
-        printk("[I2S]sndi2s_init fetch i2s using configuration failed\n");
-    }
+		printk("[I2S]sndi2s_init fetch i2s using configuration "\
+								"failed\n");
+	}
 
 	if (i2s_used) {
-		if((err = platform_device_register(&sndi2s_codec_device)) < 0)
+		err = platform_device_register(&sndi2s_codec_device);
+		if (err < 0)
 			return err;
 
-		if ((err = platform_driver_register(&sndi2s_codec_driver)) < 0)
+		err = platform_driver_register(&sndi2s_codec_driver);
+		if (err < 0)
 			return err;
 	} else {
-       printk("[I2S]sndi2s cannot find any using configuration for controllers, return directly!\n");
-       return 0;
-    }
+		printk("[I2S]sndi2s cannot find any using configuration for "\
+			"controllers, return directly!\n");
+		return 0;
+	}
 
 	return 0;
 }
