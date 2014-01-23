@@ -23,8 +23,6 @@
 #include <plat/sys_config.h>
 #include <linux/io.h>
 
-#include "sndspdif.h"
-
 #define SNDSPDIF_RATES  (SNDRV_PCM_RATE_8000_192000|SNDRV_PCM_RATE_KNOT)
 #define SNDSPDIF_FORMATS (SNDRV_PCM_FMTBIT_S16_LE)
 

@@ -25,9 +25,6 @@
 #include <linux/io.h>
 
 #include "sunxi_spdif.h"
-#include "sunxi_spdma.h"
-
-#include "sndspdif.h"
 
 static struct clk *xtal;
 static int clk_users;

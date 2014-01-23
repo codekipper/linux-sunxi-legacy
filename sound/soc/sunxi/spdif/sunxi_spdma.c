@@ -32,7 +32,6 @@
 #include <plat/sys_config.h>
 
 #include "sunxi_spdif.h"
-#include "sunxi_spdma.h"
 
 static volatile unsigned int dmasrc = 0;
 static volatile unsigned int dmadst = 0;

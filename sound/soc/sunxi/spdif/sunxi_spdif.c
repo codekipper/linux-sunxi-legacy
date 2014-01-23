@@ -34,7 +34,6 @@
 #include <asm/dma.h>
 #include <plat/dma_compat.h>
 
-#include "sunxi_spdma.h"
 #include "sunxi_spdif.h"
 
 static int regsave[6];
