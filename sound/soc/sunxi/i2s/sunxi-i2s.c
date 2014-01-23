@@ -35,7 +35,6 @@
 #include <asm/dma.h>
 #include <plat/dma_compat.h>
 
-#include "sunxi-i2sdma.h"
 #include "sunxi-i2s.h"
 
 static int regsave[8];

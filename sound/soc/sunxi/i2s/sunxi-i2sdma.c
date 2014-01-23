@@ -30,7 +30,6 @@
 #include <plat/dma_compat.h>
 
 #include "sunxi-i2s.h"
-#include "sunxi-i2sdma.h"
 
 static volatile unsigned int dmasrc = 0;
 static volatile unsigned int dmadst = 0;

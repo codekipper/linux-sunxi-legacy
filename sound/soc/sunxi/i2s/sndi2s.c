@@ -24,8 +24,6 @@
 #include <plat/sys_config.h>
 #include <linux/io.h>
 
-#include "sndi2s.h"
-
 struct sndi2s_priv {
 	int sysclk;
 	int dai_fmt;

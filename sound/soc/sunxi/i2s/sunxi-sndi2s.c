@@ -25,9 +25,6 @@
 #include <linux/io.h>
 
 #include "sunxi-i2s.h"
-#include "sunxi-i2sdma.h"
-
-#include "sndi2s.h"
 
 static struct clk *xtal;
 static int clk_users;
