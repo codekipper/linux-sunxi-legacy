@@ -39,8 +39,6 @@ static int i2s_used = 0;
 #define sndi2s_FORMATS (SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_S16_LE | \
 		                     SNDRV_PCM_FMTBIT_S18_3LE | SNDRV_PCM_FMTBIT_S20_3LE)
 
-hdmi_audio_t hdmi_parameter;
-
 static int sndi2s_mute(struct snd_soc_dai *dai, int mute)
 {
 	return 0;
@@ -62,8 +60,6 @@ static int sndi2s_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params,
 	struct snd_soc_dai *dai)
 {
-	hdmi_parameter.sample_rate = params_rate(params);
-
 	return 0;
 }
 
@@ -75,9 +71,6 @@ static int sndi2s_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 
 static int sndi2s_set_dai_clkdiv(struct snd_soc_dai *codec_dai, int div_id, int div)
 {
-
-	hdmi_parameter.fs_between = div;
-
 	return 0;
 }
 
