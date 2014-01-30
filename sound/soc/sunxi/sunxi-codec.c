@@ -333,7 +333,7 @@ static int codec_init(void)
 	/* enable DAC */
 	codec_wr_control(SUNXI_DAC_DPC, 0x1, DAC_EN, 0x1);
 
-	codec_wr_control(SUNXI_DAC_FIFOC , 0x1, 28, 0x1);
+	codec_wr_control(SUNXI_DAC_FIFOC , 0x1, FIR_VERSION, 0x1);
 	/* set digital volume to maximum */
 	if (codec_chip_ver == SUNXI_VER_A10A)
 		codec_wr_control(SUNXI_DAC_DPC, 0x6, DIGITAL_VOL, 0x0);
@@ -377,9 +377,9 @@ static int codec_play_open(struct snd_pcm_substream *substream)
 	/* set TX FIFO send drq level */
 	codec_wr_control(SUNXI_DAC_FIFOC, 0x4, TX_TRI_LEVEL, 0xf);
 	if (substream->runtime->rate > 32000)
-		codec_wr_control(SUNXI_DAC_FIFOC, 0x1, 28, 0x0);
+		codec_wr_control(SUNXI_DAC_FIFOC, 0x1, FIR_VERSION, 0x0);
 	else
-		codec_wr_control(SUNXI_DAC_FIFOC, 0x1, 28, 0x1);
+		codec_wr_control(SUNXI_DAC_FIFOC, 0x1, FIR_VERSION, 0x1);
 	/* set TX FIFO MODE */
 	codec_wr_control(SUNXI_DAC_FIFOC, 0x1, TX_FIFO_MODE, 0x1);
 	/* send last sample when DAC FIFO under runs */
@@ -397,7 +397,7 @@ static int codec_capture_open(void)
 	/* enable mic1 PA */
 	codec_wr_control(SUNXI_ADC_ACTL, 0x1, MIC1_EN, 0x1);
 	/* mic1 gain 32dB */
-	codec_wr_control(SUNXI_ADC_ACTL, 0x3, 25, 0x1);
+	codec_wr_control(SUNXI_ADC_ACTL, 0x3, MIC_GAIN, 0x1);
 	/* enable VMIC */
 	codec_wr_control(SUNXI_ADC_ACTL, 0x1, VMIC_EN, 0x1);
 
@@ -1080,17 +1080,17 @@ static int snd_sunxi_codec_prepare(struct snd_pcm_substream *substream)
 		switch (substream->runtime->channels) {
 		case 1:
 			reg_val = readl(baseaddr + SUNXI_DAC_FIFOC);
-			reg_val |= (1<<6);
+			reg_val |= SUNXI_DAC_FIFOC_DAC_MODE;
 			writel(reg_val, baseaddr + SUNXI_DAC_FIFOC);
 			break;
 		case 2:
 			reg_val = readl(baseaddr + SUNXI_DAC_FIFOC);
-			reg_val &= ~(1<<6);
+			reg_val &= ~SUNXI_DAC_FIFOC_DAC_MODE;
 			writel(reg_val, baseaddr + SUNXI_DAC_FIFOC);
 			break;
 		default:
 			reg_val = readl(baseaddr + SUNXI_DAC_FIFOC);
-			reg_val &= ~(1<<6);
+			reg_val &= ~SUNXI_DAC_FIFOC_DAC_MODE;
 			writel(reg_val, baseaddr + SUNXI_DAC_FIFOC);
 			break;
 		}
@@ -1182,17 +1182,17 @@ static int snd_sunxi_codec_prepare(struct snd_pcm_substream *substream)
 		switch (substream->runtime->channels) {
 		case 1:
 			reg_val = readl(baseaddr + SUNXI_ADC_FIFOC);
-			reg_val |= (1<<7);
+			reg_val |= SUNXI_ADC_FIFOC_ADC_MODE;
 			writel(reg_val, baseaddr + SUNXI_ADC_FIFOC);
 		break;
 		case 2:
 			reg_val = readl(baseaddr + SUNXI_ADC_FIFOC);
-			reg_val &= ~(1<<7);
+			reg_val &= ~SUNXI_ADC_FIFOC_ADC_MODE;
 			writel(reg_val, baseaddr + SUNXI_ADC_FIFOC);
 		break;
 		default:
 			reg_val = readl(baseaddr + SUNXI_ADC_FIFOC);
-			reg_val &= ~(1<<7);
+			reg_val &= ~SUNXI_ADC_FIFOC_ADC_MODE;
 			writel(reg_val, baseaddr + SUNXI_ADC_FIFOC);
 		break;
 		}

@@ -11,7 +11,7 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
@@ -27,21 +27,89 @@
 /* Codec Register */
 #define CODEC_BASEADDRESS	(0x01c22c00)
 #define SUNXI_DAC_DPC		(0x00)
+	#define SUNXI_DAC_DPC_DAC_EN			(1 << 31)
+	#define SUNXI_DAC_DPC_DIGITAL_VOL		(1 << 12)
+
 #define SUNXI_DAC_FIFOC		(0x04)
+	#define SUNXI_DAC_FIFOC_SAMPLE_RATE_96KHZ	(7 << 29)
+	#define SUNXI_DAC_FIFOC_SAMPLE_RATE_192KHZ	(6 << 29)
+	#define SUNXI_DAC_FIFOC_SAMPLE_RATE_8KHZ	(5 << 29)
+	#define SUNXI_DAC_FIFOC_SAMPLE_RATE_12KHZ	(4 << 29)
+	#define SUNXI_DAC_FIFOC_SAMPLE_RATE_16KHZ	(3 << 29)
+	#define SUNXI_DAC_FIFOC_SAMPLE_RATE_24KHZ	(2 << 29)
+	#define SUNXI_DAC_FIFOC_SAMPLE_RATE_32KHZ	(1 << 29)
+	#define SUNXI_DAC_FIFOC_SAMPLE_RATE_48KHZ	(0 << 29)
+	#define SUNXI_DAC_FIFOC_SAMPLE_RATE_MASK	(7 << 29)
+	#define SUNXI_DAC_FIFOC_32_TAP_FIR		(1 << 28)
+	#define SUNXI_DAC_FIFOC_64_TAP_FIR		(0 << 28)
+	#define SUNXI_DAC_FIFOC_LAST_SE			(1 << 26)
+	#define SUNXI_DAC_FIFOC_TX_FIFO_MODE		(1 << 24)
+	#define SUNXI_DAC_FIFOC_DRA_LEVEL		(1 << 21)
+	#define SUNXI_DAC_FIFOC_TX_TRI_LEVEL		(1 << 8)
+	#define SUNXI_DAC_FIFOC_DAC_MODE		(1 << 6)
+	#define SUNXI_DAC_FIFOC_TASR			(1 << 5)
+	#define SUNXI_DAC_FIFOC_DAC_DRQ			(1 << 4)
+	#define SUNXI_DAC_FIFOC_DAC_FIFO_FLUSH		(1 << 0)
+
 #define SUNXI_DAC_FIFOS		(0x08)
 #define SUNXI_DAC_TXDATA	(0x0c)
 #define SUNXI_DAC_ACTL		(0x10)
+	#define SUNXI_DAC_ACTL_DACAEN_R			(1 << 31)
+	#define SUNXI_DAC_ACTL_DACAEN_L			(1 << 30)
+	#define SUNXI_DAC_ACTL_MIXEN			(1 << 29)
+	#define SUNXI_DAC_ACTL_LINE_OUT_VOLUME		(1 << 26)
+	#define SUNXI_DAC_ACTL_FM_VOLUME		(7 << 23)
+	#define SUNXI_DAC_ACTL_MIC_OUT_VOLUME		(7 << 20)
+	#define SUNXI_DAC_ACTL_LINE_SWITCH_L		(1 << 19)
+	#define SUNXI_DAC_ACTL_LINE_SWITCH_R		(1 << 18)
+	#define SUNXI_DAC_ACTL_FM_SWITCH_L		(1 << 17)
+	#define SUNXI_DAC_ACTL_FM_SWITCH_R		(1 << 16)
+	#define SUNXI_DAC_ACTL_LDAC_LMIXER		(1 << 15)
+	#define SUNXI_DAC_ACTL_RDAC_RMIXER		(1 << 14)
+	#define SUNXI_DAC_ACTL_LDAC_RMIXER		(1 << 13)
+	#define SUNXI_DAC_ACTL_MIC_INPUT_MUX		(0xf << 9)
+	#define SUNXI_DAC_ACTL_DACPAS			(1 << 8)
+	#define SUNXI_DAC_ACTL_MIXPAS			(1 << 7)
+	#define SUNXI_DAC_ACTL_PA_MUTE			(1 << 6)
+	#define SUNXI_DAC_ACTL_VOLUME			(0x3f << 0)
+
 #define SUNXI_DAC_TUNE		(0x14)
+	#define SUNXI_DAC_TUNE_SUN7I			(1 << 3)
+
 #define SUNXI_DAC_DEBUG		(0x18)
+	#define SUNXI_DAC_DEBUG_DAC_CHANNEL		(1 << 6)
+
 #define SUNXI_ADC_FIFOC		(0x1c)
+	#define SUNXI_ADC_FIFOC_ADC_DIG_EN		(1 << 28)
+	#define SUNXI_ADC_FIFOC_RX_FIFO_MODE		(1 << 24)
+	#define SUNXI_ADC_FIFOC_RX_TRI_LEVEL		(1 << 8)
+	#define SUNXI_ADC_FIFOC_ADC_MODE		(1 << 7)
+	#define SUNXI_ADC_FIFOC_RASR			(1 << 6)
+	#define SUNXI_ADC_FIFOC_ADC_DRQ			(1 << 4)
+	#define SUNXI_ADC_FIFOC_ADC_FIFO_FLUSH		(1 << 0)
+
 #define SUNXI_ADC_FIFOS		(0x20)
 #define SUNXI_ADC_RXDATA	(0x24)
 #define SUNXI_ADC_ACTL		(0x28)
+	#define  SUNXI_ADC_ACTL_ADC_EN			(3 << 30)
+	#define  SUNXI_ADC_ACTL_MIC1_EN			(1 << 29)
+	#define  SUNXI_ADC_ACTL_MIC2_EN			(1 << 28)
+	#define  SUNXI_ADC_ACTL_VMIC_EN			(1 << 27)
+	#define  SUNXI_ADC_ACTL_MIC_GAIN		(1 << 25)
+	#define  SUNXI_ADC_ACTL_ADC_SELECT		(1 << 17)
+	#define  SUNXI_ADC_ACTL_BIT8			(1 << 8)
+	#define  SUNXI_ADC_ACTL_PA_ENABLE		(1 << 4)
+	#define  SUNXI_ADC_ACTL_HP_DIRECT		(1 << 3)
+
 #define SUNXI_ADC_DEBUG		(0x2c)
 #define SUNXI_DAC_TXCNT		(0x30)
 #define SUNXI_ADC_RXCNT		(0x34)
 #define SUNXI_BIAS_CRT		(0x38)
 #define SUNXI_MIC_CRT		(0x3c)
+	#define  SUNXI_MIC_CRT_MIC1_GAIN_VOL		(3 << 29)
+	#define  SUNXI_MIC_CRT_MIC2_GAIN_VOL		(7 << 26)
+	#define  SUNXI_MIC_CRT_LINEIN_APM_VOL		(7 << 13)
+
 #define SUNXI_CODEC_REGS_NUM	(13)
 
 #define DAIFMT_16BITS		(16)
@@ -57,12 +125,13 @@
 #define DAC_VERSION		(23)
 
 #define DAC_CHANNEL		(6)
+#define FIR_VERSION		(28)
 #define LAST_SE			(26)
 #define TX_FIFO_MODE		(24)
 #define DRA_LEVEL		(21)
 #define TX_TRI_LEVEL		(8)
-#define DAC_MODE		(6)		/* unused */
-#define TASR			(5)		/* unused */
+#define DAC_MODE		(6)
+#define TASR			(5)
 #define DAC_DRQ			(4)
 #define DAC_FIFO_FLUSH		(0)
 
@@ -110,14 +179,14 @@ void  __iomem *baseaddr;
  */
 #define CODEC_SINGLE_VALUE(xreg, xshift, xmax, xinvert) \
 		((unsigned long)&(struct codec_mixer_control) \
-		{.reg =	xreg, .shift = xshift, .rshift = xshift, .max =	xmax, \
+		{.reg = xreg, .shift = xshift, .rshift = xshift, .max = xmax, \
 		.invert = xinvert})
 
 #define CODEC_SINGLE(xname, reg, shift, max, invert) \
 {	.iface	= SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
-	.info	= snd_codec_info_volsw,	.get = snd_codec_get_volsw, \
+	.info	= snd_codec_info_volsw, .get = snd_codec_get_volsw, \
 	.put	= snd_codec_put_volsw, \
-	.private_value	= CODEC_SINGLE_VALUE(reg, shift, max, invert)}
+	.private_value = CODEC_SINGLE_VALUE(reg, shift, max, invert)}
 
 /* mixer control */
 struct	codec_mixer_control {
