@@ -101,8 +101,6 @@ enum m1_codec_config {
 void  __iomem *baseaddr;
 
 #define AUDIO_RATE_DEFAULT	44100
-#define ST_RUNNING		(1<<0)
-#define ST_OPENED		(1<<1)
 
 #define codec_rdreg(reg)	    readl((baseaddr+(reg)))
 #define codec_wrreg(reg,val)  writel((val),(baseaddr+(reg)))

@@ -1256,7 +1256,6 @@ static int snd_sunxi_codec_trigger(struct snd_pcm_substream *substream, int cmd)
 		case SNDRV_PCM_TRIGGER_START:
 		case SNDRV_PCM_TRIGGER_RESUME:
 		case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-			capture_prtd->state |= ST_RUNNING;
 			codec_capture_start();
 			mdelay(1);
 			codec_wr_control(SUNXI_ADC_FIFOC, 0x1, ADC_FIFO_FLUSH, 0x1);
@@ -1266,12 +1265,10 @@ static int snd_sunxi_codec_trigger(struct snd_pcm_substream *substream, int cmd)
 			codec_capture_stop();
 			break;
 		case SNDRV_PCM_TRIGGER_STOP:
-			capture_prtd->state &= ~ST_RUNNING;
 			codec_capture_stop();
 			sunxi_dma_stop(capture_prtd->params);
 			break;
 		case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-			capture_prtd->state &= ~ST_RUNNING;
 			sunxi_dma_stop(capture_prtd->params);
 			break;
 		default:
