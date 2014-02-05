@@ -140,10 +140,9 @@ static struct snd_pcm_hardware sunxi_pcm_capture_hardware =
 	.fifo_size	     	= 32,//fifo字节数
 };
 
-struct sunxi_codec{
-	long samplerate;
-	struct snd_card *card;
-	struct snd_pcm *pcm;
+struct sunxi_codec {
+	struct snd_card	*card;
+	struct snd_pcm	*pcm;
 };
 
 static void codec_resume_events(struct work_struct *work);
@@ -1462,7 +1461,6 @@ static int __devinit sunxi_codec_probe(struct platform_device *pdev)
 	/*声卡芯片的专用数据*/
 	card->private_free = snd_sunxi_codec_free;//card私有数据释放
 	chip->card = card;
-	chip->samplerate = AUDIO_RATE_DEFAULT;
 
 	/*
 	*	mixer,注册control(mixer)接口
