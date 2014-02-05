@@ -982,8 +982,8 @@ static int snd_sunxi_codec_prepare(struct snd_pcm_substream *substream)
 			clk_set_rate(codec_pll2clk, 22579200);
 			clk_set_rate(codec_moduleclk, 22579200);
 			reg_val = readl(baseaddr + SUNXI_DAC_FIFOC);
-			reg_val &= ~(7<<29);
-			reg_val |= (0<<29);
+			reg_val &= ~SUNXI_DAC_FIFOC_SAMPLE_RATE_MASK;
+			reg_val |= SUNXI_DAC_FIFOC_SAMPLE_RATE_48KHZ;
 			writel(reg_val, baseaddr + SUNXI_DAC_FIFOC);
 
 			break;
@@ -991,88 +991,88 @@ static int snd_sunxi_codec_prepare(struct snd_pcm_substream *substream)
 			clk_set_rate(codec_pll2clk, 22579200);
 			clk_set_rate(codec_moduleclk, 22579200);
 			reg_val = readl(baseaddr + SUNXI_DAC_FIFOC);
-			reg_val &= ~(7<<29);
-			reg_val |= (2<<29);
+			reg_val &= ~SUNXI_DAC_FIFOC_SAMPLE_RATE_MASK;
+			reg_val |= SUNXI_DAC_FIFOC_SAMPLE_RATE_24KHZ;
 			writel(reg_val, baseaddr + SUNXI_DAC_FIFOC);
 			break;
 		case 11025:
 			clk_set_rate(codec_pll2clk, 22579200);
 			clk_set_rate(codec_moduleclk, 22579200);
 			reg_val = readl(baseaddr + SUNXI_DAC_FIFOC);
-			reg_val &= ~(7<<29);
-			reg_val |= (4<<29);
+			reg_val &= ~SUNXI_DAC_FIFOC_SAMPLE_RATE_MASK;
+			reg_val |= SUNXI_DAC_FIFOC_SAMPLE_RATE_12KHZ;
 			writel(reg_val, baseaddr + SUNXI_DAC_FIFOC);
 			break;
 		case 48000:
 			clk_set_rate(codec_pll2clk, 24576000);
 			clk_set_rate(codec_moduleclk, 24576000);
 			reg_val = readl(baseaddr + SUNXI_DAC_FIFOC);
-			reg_val &= ~(7<<29);
-			reg_val |= (0<<29);
+			reg_val &= ~SUNXI_DAC_FIFOC_SAMPLE_RATE_MASK;
+			reg_val |= SUNXI_DAC_FIFOC_SAMPLE_RATE_48KHZ;
 			writel(reg_val, baseaddr + SUNXI_DAC_FIFOC);
 			break;
 		case 96000:
 			clk_set_rate(codec_pll2clk, 24576000);
 			clk_set_rate(codec_moduleclk, 24576000);
 			reg_val = readl(baseaddr + SUNXI_DAC_FIFOC);
-			reg_val &= ~(7<<29);
-			reg_val |= (7<<29);
+			reg_val &= ~SUNXI_DAC_FIFOC_SAMPLE_RATE_MASK;
+			reg_val |= SUNXI_DAC_FIFOC_SAMPLE_RATE_96KHZ;
 			writel(reg_val, baseaddr + SUNXI_DAC_FIFOC);
 			break;
 		case 192000:
 			clk_set_rate(codec_pll2clk, 24576000);
 			clk_set_rate(codec_moduleclk, 24576000);
 			reg_val = readl(baseaddr + SUNXI_DAC_FIFOC);
-			reg_val &= ~(7<<29);
-			reg_val |= (6<<29);
+			reg_val &= ~SUNXI_DAC_FIFOC_SAMPLE_RATE_MASK;
+			reg_val |= SUNXI_DAC_FIFOC_SAMPLE_RATE_192KHZ;
 			writel(reg_val, baseaddr + SUNXI_DAC_FIFOC);
 			break;
 		case 32000:
 			clk_set_rate(codec_pll2clk, 24576000);
 			clk_set_rate(codec_moduleclk, 24576000);
 			reg_val = readl(baseaddr + SUNXI_DAC_FIFOC);
-			reg_val &= ~(7<<29);
-			reg_val |= (1<<29);
+			reg_val &= ~SUNXI_DAC_FIFOC_SAMPLE_RATE_MASK;
+			reg_val |= SUNXI_DAC_FIFOC_SAMPLE_RATE_32KHZ;
 			writel(reg_val, baseaddr + SUNXI_DAC_FIFOC);
 			break;
 		case 24000:
 			clk_set_rate(codec_pll2clk, 24576000);
 			clk_set_rate(codec_moduleclk, 24576000);
 			reg_val = readl(baseaddr + SUNXI_DAC_FIFOC);
-			reg_val &= ~(7<<29);
-			reg_val |= (2<<29);
+			reg_val &= ~SUNXI_DAC_FIFOC_SAMPLE_RATE_MASK;
+			reg_val |= SUNXI_DAC_FIFOC_SAMPLE_RATE_24KHZ;
 			writel(reg_val, baseaddr + SUNXI_DAC_FIFOC);
 			break;
 		case 16000:
 			clk_set_rate(codec_pll2clk, 24576000);
 			clk_set_rate(codec_moduleclk, 24576000);
 			reg_val = readl(baseaddr + SUNXI_DAC_FIFOC);
-			reg_val &= ~(7<<29);
-			reg_val |= (3<<29);
+			reg_val &= ~SUNXI_DAC_FIFOC_SAMPLE_RATE_MASK;
+			reg_val |= SUNXI_DAC_FIFOC_SAMPLE_RATE_16KHZ;
 			writel(reg_val, baseaddr + SUNXI_DAC_FIFOC);
 			break;
 		case 12000:
 			clk_set_rate(codec_pll2clk, 24576000);
 			clk_set_rate(codec_moduleclk, 24576000);
 			reg_val = readl(baseaddr + SUNXI_DAC_FIFOC);
-			reg_val &= ~(7<<29);
-			reg_val |= (4<<29);
+			reg_val &= ~SUNXI_DAC_FIFOC_SAMPLE_RATE_MASK;
+			reg_val |= SUNXI_DAC_FIFOC_SAMPLE_RATE_12KHZ;
 			writel(reg_val, baseaddr + SUNXI_DAC_FIFOC);
 			break;
 		case 8000:
 			clk_set_rate(codec_pll2clk, 24576000);
 			clk_set_rate(codec_moduleclk, 24576000);
 			reg_val = readl(baseaddr + SUNXI_DAC_FIFOC);
-			reg_val &= ~(7<<29);
-			reg_val |= (5<<29);
+			reg_val &= ~SUNXI_DAC_FIFOC_SAMPLE_RATE_MASK;
+			reg_val |= SUNXI_DAC_FIFOC_SAMPLE_RATE_8KHZ;
 			writel(reg_val, baseaddr + SUNXI_DAC_FIFOC);
 			break;
 		default:
 			clk_set_rate(codec_pll2clk, 24576000);
 			clk_set_rate(codec_moduleclk, 24576000);
 			reg_val = readl(baseaddr + SUNXI_DAC_FIFOC);
-			reg_val &= ~(7<<29);
-			reg_val |= (0<<29);
+			reg_val &= ~SUNXI_DAC_FIFOC_SAMPLE_RATE_MASK;
+			reg_val |= SUNXI_DAC_FIFOC_SAMPLE_RATE_48KHZ;
 			writel(reg_val, baseaddr + SUNXI_DAC_FIFOC);
 			break;
 		}
@@ -1100,8 +1100,8 @@ static int snd_sunxi_codec_prepare(struct snd_pcm_substream *substream)
 			clk_set_rate(codec_pll2clk, 22579200);
 			clk_set_rate(codec_moduleclk, 22579200);
 			reg_val = readl(baseaddr + SUNXI_ADC_FIFOC);
-			reg_val &= ~(7<<29);
-			reg_val |= (0<<29);
+			reg_val &= ~SUNXI_ADC_FIFOC_SAMPLE_RATE_MASK;
+			reg_val |= SUNXI_ADC_FIFOC_SAMPLE_RATE_48KHZ;
 			writel(reg_val, baseaddr + SUNXI_ADC_FIFOC);
 
 			break;
@@ -1109,72 +1109,72 @@ static int snd_sunxi_codec_prepare(struct snd_pcm_substream *substream)
 			clk_set_rate(codec_pll2clk, 22579200);
 			clk_set_rate(codec_moduleclk, 22579200);
 			reg_val = readl(baseaddr + SUNXI_ADC_FIFOC);
-			reg_val &= ~(7<<29);
-			reg_val |= (2<<29);
+			reg_val &= ~SUNXI_ADC_FIFOC_SAMPLE_RATE_MASK;
+			reg_val |= SUNXI_ADC_FIFOC_SAMPLE_RATE_24KHZ;
 			writel(reg_val, baseaddr + SUNXI_ADC_FIFOC);
 			break;
 		case 11025:
 			clk_set_rate(codec_pll2clk, 22579200);
 			clk_set_rate(codec_moduleclk, 22579200);
 			reg_val = readl(baseaddr + SUNXI_ADC_FIFOC);
-			reg_val &= ~(7<<29);
-			reg_val |= (4<<29);
+			reg_val &= ~SUNXI_ADC_FIFOC_SAMPLE_RATE_MASK;
+			reg_val |= SUNXI_ADC_FIFOC_SAMPLE_RATE_12KHZ;
 			writel(reg_val, baseaddr + SUNXI_ADC_FIFOC);
 			break;
 		case 48000:
 			clk_set_rate(codec_pll2clk, 24576000);
 			clk_set_rate(codec_moduleclk, 24576000);
 			reg_val = readl(baseaddr + SUNXI_ADC_FIFOC);
-			reg_val &= ~(7<<29);
-			reg_val |= (0<<29);
+			reg_val &= ~SUNXI_ADC_FIFOC_SAMPLE_RATE_MASK;
+			reg_val |= SUNXI_ADC_FIFOC_SAMPLE_RATE_48KHZ;
 			writel(reg_val, baseaddr + SUNXI_ADC_FIFOC);
 			break;
 		case 32000:
 			clk_set_rate(codec_pll2clk, 24576000);
 			clk_set_rate(codec_moduleclk, 24576000);
 			reg_val = readl(baseaddr + SUNXI_ADC_FIFOC);
-			reg_val &= ~(7<<29);
-			reg_val |= (1<<29);
+			reg_val &= ~SUNXI_ADC_FIFOC_SAMPLE_RATE_MASK;
+			reg_val |= SUNXI_ADC_FIFOC_SAMPLE_RATE_32KHZ;
 			writel(reg_val, baseaddr + SUNXI_ADC_FIFOC);
 			break;
 		case 24000:
 			clk_set_rate(codec_pll2clk, 24576000);
 			clk_set_rate(codec_moduleclk, 24576000);
 			reg_val = readl(baseaddr + SUNXI_ADC_FIFOC);
-			reg_val &= ~(7<<29);
-			reg_val |= (2<<29);
+			reg_val &= ~SUNXI_ADC_FIFOC_SAMPLE_RATE_MASK;
+			reg_val |= SUNXI_ADC_FIFOC_SAMPLE_RATE_24KHZ;
 			writel(reg_val, baseaddr + SUNXI_ADC_FIFOC);
 			break;
 		case 16000:
 			clk_set_rate(codec_pll2clk, 24576000);
 			clk_set_rate(codec_moduleclk, 24576000);
 			reg_val = readl(baseaddr + SUNXI_ADC_FIFOC);
-			reg_val &= ~(7<<29);
-			reg_val |= (3<<29);
+			reg_val &= ~SUNXI_ADC_FIFOC_SAMPLE_RATE_MASK;
+			reg_val |= SUNXI_ADC_FIFOC_SAMPLE_RATE_16KHZ;
 			writel(reg_val, baseaddr + SUNXI_ADC_FIFOC);
 			break;
 		case 12000:
 			clk_set_rate(codec_pll2clk, 24576000);
 			clk_set_rate(codec_moduleclk, 24576000);
 			reg_val = readl(baseaddr + SUNXI_ADC_FIFOC);
-			reg_val &= ~(7<<29);
-			reg_val |= (4<<29);
+			reg_val &= ~SUNXI_ADC_FIFOC_SAMPLE_RATE_MASK;
+			reg_val |= SUNXI_ADC_FIFOC_SAMPLE_RATE_12KHZ;
 			writel(reg_val, baseaddr + SUNXI_ADC_FIFOC);
 			break;
 		case 8000:
 			clk_set_rate(codec_pll2clk, 24576000);
 			clk_set_rate(codec_moduleclk, 24576000);
 			reg_val = readl(baseaddr + SUNXI_ADC_FIFOC);
-			reg_val &= ~(7<<29);
-			reg_val |= (5<<29);
+			reg_val &= ~SUNXI_ADC_FIFOC_SAMPLE_RATE_MASK;
+			reg_val |= SUNXI_ADC_FIFOC_SAMPLE_RATE_8KHZ;
 			writel(reg_val, baseaddr + SUNXI_ADC_FIFOC);
 			break;
 		default:
 			clk_set_rate(codec_pll2clk, 24576000);
 			clk_set_rate(codec_moduleclk, 24576000);
 			reg_val = readl(baseaddr + SUNXI_ADC_FIFOC);
-			reg_val &= ~(7<<29);
-			reg_val |= (0<<29);
+			reg_val &= ~SUNXI_ADC_FIFOC_SAMPLE_RATE_MASK;
+			reg_val |= SUNXI_ADC_FIFOC_SAMPLE_RATE_48KHZ;
 			writel(reg_val, baseaddr + SUNXI_ADC_FIFOC);
 			break;
 		}
