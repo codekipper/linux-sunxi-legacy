@@ -34,7 +34,6 @@
 #include <plat/sys_config.h>
 #include <mach/system.h>
 
-#define SCRIPT_AUDIO_OK (0)
 static int has_playback, has_capture;
 static int gpio_pa_shutdown = 0;
 struct clk *codec_apbclk,*codec_pll2clk,*codec_moduleclk;
@@ -345,7 +344,7 @@ static  int codec_init(void)
 		}
 		rc = script_parser_fetch("audio_para", "audio_lr_change",
 					 &device_lr_change, 1);
-		if (rc != SCRIPT_AUDIO_OK) {
+		if (rc != 0) {
 			pr_err("No audio_lr_change in fex audio_para\n");
 			return -1;
 		}
