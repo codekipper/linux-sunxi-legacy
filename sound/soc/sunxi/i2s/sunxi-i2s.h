@@ -163,101 +163,6 @@
 	#define SUNXI_RXCHMAP_CH1(v)			(((v)-1) << 4)
 	#define SUNXI_RXCHMAP_CH0(v)			(((v)-1) << 0)
 
-
-/* DMA REGISTER */
-#define SUNXI_DMABASE		(0x01C02000)
-
-#define SUNXI_DMAIRQEN		(0x0)
-	#define SUNXI_DMAIRQEN_NDMA_FULLEN(v)		(1 << ((v) * 2 + 1))
-	#define SUNXI_DMAIRQEN_NDMA_HALFEN(v)		(1 << ((v) * 2))
-
-#define SUNXI_DMAIRQPENDING	(0x4)
-	#define SUNXI_DMAIRQPENGDING_NDMA_FULLPEND(v)	(1 << ((v) * 2 + 1))
-	#define SUNXI_DMAIRQPENGDING_NDMA_HALFPEND(v)	(1 << ((v) * 2))
-
-#define SUNXI_NDMACFG(v)				((v)*0x20 + 0x100)
-	#define SUNXI_NDMACFG_DMALOAD			(1 << 31)
-	#define SUNXI_NDMACFG_BUSY			(1 << 30)
-	#define SUNXI_NDMACFG_CONTINUOUS		(1 << 29)
-	/* wait clock = 2^n  example: 8 clocks = 2^3 */
-	#define SUNXI_NDMACFG_WAIT(v)			(((v) - 1) << 26)
-	#define SUNXI_NDMACFG_DSTDATAWIDTH_8BIT		(0 << 24)
-	#define SUNXI_NDMACFG_DSTDATAWIDTH_16BIT	(1 << 24)
-	#define SUNXI_NDMACFG_DSTDATAWIDTH_32BIT	(2 << 24)
-	#define SUNXI_NDMACFG_DSTDATAWIDTH_RVD		(3 << 24)
-	#define SUNXI_NDMACFG_DSTBURST4			(1 << 23)
-	#define SUNXI_NDMACFG_DSTADDRTYPE_INC		(0 << 21)
-	#define SUNXI_NDMACFG_DSTADDRTYPE_CON		(1 << 21)
-	#define SUNXI_NDMACFG_DSTTYPE_IRTX		(0x0 << 16)
-	#define SUNXI_NDMACFG_DSTTYPE_SPDIFTX		(0x1 << 16)
-	#define SUNXI_NDMACFG_DSTTYPE_IISTX		(0x2 << 16)
-	#define SUNXI_NDMACFG_DSTTYPE_AC97TX		(0x3 << 16)
-	#define SUNXI_NDMACFG_DSTTYPE_SPI0TX		(0x4 << 16)
-	#define SUNXI_NDMACFG_DSTTYPE_SPI1TX		(0x5 << 16)
-	#define SUNXI_NDMACFG_DSTTYPE_SPI2TX		(0x6 << 16)
-	#define SUNXI_NDMACFG_DSTTYPE_UART0TX		(0x8 << 16)
-	#define SUNXI_NDMACFG_DSTTYPE_UART1TX		(0x9 << 16)
-	#define SUNXI_NDMACFG_DSTTYPE_UART2TX		(0xA << 16)
-	#define SUNXI_NDMACFG_DSTTYPE_UART3TX		(0xB << 16)
-	#define SUNXI_NDMACFG_DSTTYPE_AUDIODA		(0xC << 16)
-	#define SUNXI_NDMACFG_DSTTYPE_NFC		(0xF << 16)
-	#define SUNXI_NDMACFG_DSTTYPE_SRAM		(0x10 << 16)
-	#define SUNXI_NDMACFG_DSTTYPE_DRAM		(0x11 << 16)
-	#define SUNXI_NDMACFG_DSTTYPE_UART4TX		(0x12 << 16)
-	#define SUNXI_NDMACFG_DSTTYPE_UART5TX		(0x13 << 16)
-	#define SUNXI_NDMACFG_DSTTYPE_UART6TX		(0x14 << 16)
-	#define SUNXI_NDMACFG_DSTTYPE_UART7TX		(0x15 << 16)
-	#define SUNXI_NDMACFG_SRCDATAWIDTH_8BIT		(0 << 8)
-	#define SUNXI_NDMACFG_SRCDATAWIDTH_16BIT	(1 << 8)
-	#define SUNXI_NDMACFG_SRCDATAWIDTH_32BIT	(2 << 8)
-	#define SUNXI_NDMACFG_SRCDATAWIDTH_RVD		(3 << 8)
-	#define SUNXI_NDMACFG_SRCBURST4			(1 << 7)
-	#define SUNXI_NDMACFG_SRCADDRTYPE_INC		(0 << 5)
-	#define SUNXI_NDMACFG_SRCADDRTYPE_CON		(1 << 5)
-	#define SUNXI_NDMACFG_SRCTYPE_IRRX		(0x0 << 0)
-	#define SUNXI_NDMACFG_SRCTYPE_SPDIFRX		(0x1 << 0)
-	#define SUNXI_NDMACFG_SRCTYPE_IISRX		(0x2 << 0)
-	#define SUNXI_NDMACFG_SRCTYPE_AC97RX		(0x3 << 0)
-	#define SUNXI_NDMACFG_SRCTYPE_SPI0RX		(0x4 << 0)
-	#define SUNXI_NDMACFG_SRCTYPE_SPI1RX		(0x5 << 0)
-	#define SUNXI_NDMACFG_SRCTYPE_SPI2RX		(0x6 << 0)
-	#define SUNXI_NDMACFG_SRCTYPE_UART0RX		(0x8 << 0)
-	#define SUNXI_NDMACFG_SRCTYPE_UART1RX		(0x9 << 0)
-	#define SUNXI_NDMACFG_SRCTYPE_UART2RX		(0xA << 0)
-	#define SUNXI_NDMACFG_SRCTYPE_UART3RX		(0xB << 0)
-	#define SUNXI_NDMACFG_SRCTYPE_AUDIOAD		(0xC << 0)
-	#define SUNXI_NDMACFG_SRCTYPE_TPAD		(0xD << 0)
-	#define SUNXI_NDMACFG_SRCTYPE_NFC		(0xF << 0)
-	#define SUNXI_NDMACFG_SRCTYPE_SRAM		(0x10 << 0)
-	#define SUNXI_NDMACFG_SRCTYPE_DRAM		(0x11 << 0)
-	#define SUNXI_NDMACFG_SRCTYPE_UART4RX		(0x12 << 0)
-	#define SUNXI_NDMACFG_SRCTYPE_UART5RX		(0x13 << 0)
-	#define SUNXI_NDMACFG_SRCTYPE_UART6RX		(0x14 << 0)
-	#define SUNXI_NDMACFG_SRCTYPE_UART7RX		(0x15 << 0)
-
-#define SUNXI_NDMASRCADDR(v)				((v)*0x20 + 0x100 + 4)
-
-#define SUNXI_NDMADSTADDR(v)				((v)*0x20 + 0x100 + 8)
-
-#define SUNXI_NDMACNT(v)				((v)*0x20 + 0x100 + 0xC)
-
-
-/* CCM REGISTER */
-#define SUNXI_CCMBASE			(0x01C20000)
-
-#define SUNXI_CCM_AUDIO_HOSC_PLL_REG	(0x08)
-	#define SUNXI_CCM_AUDIO_HOSC_PLL_REG_AUDIOEN		(1 << 31)
-	#define SUNXI_CCM_AUDIO_HOSC_PLL_REG_FRE225792MHZ	(0 << 27)
-	#define SUNXI_CCM_AUDIO_HOSC_PLL_REG_FRE24576MHZ	(1 << 27)
-
-#define SUNXI_CCM_APB_GATE_REG		(0x68)
-	#define SUNXI_CCM_APB_GATE_REG_IISGATE			(1 << 3)
-
-#define SUNXI_CCM_AUDIO_CLK_REG		(0xb8)
-	#define SUNXI_CCM_AUDIO_CLK_REG_IISSPECIALGATE		(1 << 31)
-	#define SUNXI_CCM_AUDIO_CLK_REG_DIV(v)			((v) << 16)
-/*------------------------------------------------------------*/
-
 /*------------------------------------------------------------*/
 /* Clock dividers */
 #define SUNXI_DIV_MCLK			0
@@ -306,8 +211,6 @@ extern void sunxi_snd_rxctrl_i2s(int on);
  */
 struct sunxi_i2s_info {
 	void __iomem   *regs;
-	void __iomem   *ccmregs;
-	void __iomem   *ioregs;
 
 	u32 slave;
 	u32 mono;

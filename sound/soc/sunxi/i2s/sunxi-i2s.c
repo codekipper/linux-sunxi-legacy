@@ -629,7 +629,6 @@ static int __devinit sunxi_i2s_dev_probe(struct platform_device *pdev)
 	reg_val |= SUNXI_IISCTL_GEN;
 	writel(reg_val, sunxi_iis.regs + SUNXI_IISCTL);
 
-	iounmap(sunxi_iis.ioregs);
 	ret = snd_soc_register_dai(&pdev->dev, &sunxi_iis_dai);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register DAI\n");
