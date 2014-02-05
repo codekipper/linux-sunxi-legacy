@@ -124,31 +124,12 @@
 	#define SUNXI_SPDIF_RXCHSTA1_SAMWORDLEN(v)	((v)<<1)
 	#define SUNXI_SPDIF_RXCHSTA1_MAXWORDLEN			(1<<0)
 
-/*--------------------------------CCM register definition---------------------*/
-#define SUNXI_CCMBASE (0x01C20000)
-
-#define SUNXI_CCMBASE_AUDIOHOSCPLL (0x08)
-	#define SUNXI_CCMBASE_AUDIOHOSCPLL_EN			(1<<31)
-	#define SUNXI_CCMBASE_AUDIOHOSCPLL_24576M		(1<<27)
-	#define SUNXI_CCMBASE_AUDIOHOSCPLL_225792M 		(0<<27)
-
-#define SUNXI_CCMBASE_APBGATE	(0x68)
-	#define SUNXI_CCMBASE_APBGATE_SPDIFGATE	(1<<1)
-
-#define SUNXI_CCMBASE_AUDIOCLK (0xC0)
-	#define SUNXI_CCMBASE_AUDIOCLK_SPDIFSPEGATE	(1<<31)
-	#define SUNXI_CCMBASE_AUDIOCLK_DIV(v)			((v)<<16)
-
-	/* Clock dividers */
-	#define SUNXI_DIV_MCLK	0
-	#define SUNXI_DIV_BCLK	1
-
+/* Clock dividers */
+#define SUNXI_DIV_MCLK	0
+#define SUNXI_DIV_BCLK	1
 
 struct sunxi_spdif_info {
-	void __iomem   *regs;    /* IIS BASE */
-	void __iomem   *ccmregs;  //CCM BASE
-	void __iomem   *ioregs;   //IO BASE
-
+	void __iomem *regs;	/* SPDIF BASE */
 };
 
 extern struct sunxi_spdif_info sunxi_spdif;

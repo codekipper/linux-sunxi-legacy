@@ -553,8 +553,6 @@ static int __devinit sunxi_spdif_dev_probe(struct platform_device *pdev)
 
 		ret = snd_soc_register_dai(&pdev->dev, &sunxi_spdif_dai);
 
-		iounmap(sunxi_spdif.ioregs);
-
 	return 0;
 }
 
