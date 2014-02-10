@@ -65,77 +65,71 @@ static void sunxi_sndspdif_shutdown(struct snd_pcm_substream *substream)
 	mutex_unlock(&clk_lock);
 }
 
-typedef struct __MCLK_SET_INF
-{
-    __u32   samp_rate;      // sample rate
-	__u16 	mult_fs;        // multiply of smaple rate
+typedef struct __MCLK_SET_INF {
+	__u32	samp_rate;	/* sample rate */
+	__u16	mult_fs;	/* multiply of sample rate */
 
-    __u8    clk_div;        // mpll division
-    __u8    mpll;           // select mpll, 0 - 24.576 Mhz, 1 - 22.5792 Mhz
-
+	__u8	clk_div;	/* mpll division */
+	__u8	mpll;		/* select mpll, 0:24.576 Mhz, 1:22.5792 Mhz */
 } __mclk_set_inf;
 
 
-typedef struct __BCLK_SET_INF
-{
-    __u8    bitpersamp;     // bits per sample
-    __u8    clk_div;        // clock division
-    __u16   mult_fs;        // multiplay of sample rate
-
+typedef struct __BCLK_SET_INF {
+	__u8	bitpersamp;	/* bits per sample */
+	__u8	clk_div;	/* clock division */
+	__u16	mult_fs;	/* multiplay of sample rate */
 } __bclk_set_inf;
 
 
-static __bclk_set_inf BCLK_INF[] =
-{
-    // 16bits per sample
-    {16,  4, 128}, {16,  6, 192}, {16,  8, 256},
-    {16, 12, 384}, {16, 16, 512},
+static __bclk_set_inf BCLK_INF[] = {
+	/* 16bits per sample */
+	{16, 4, 128}, {16, 6, 192}, {16, 8, 256},
+	{16, 12, 384}, {16, 16, 512},
 
-    //24 bits per sample
-    {24,  4, 192}, {24,  8, 384}, {24, 16, 768},
+	/* 24 bits per sample */
+	{24, 4, 192}, {24, 8, 384}, {24, 16, 768},
 
-    //32 bits per sample
-    {32,  2, 128}, {32,  4, 256}, {32,  6, 384},
-    {32,  8, 512}, {32, 12, 768},
+	/* 32 bits per sample */
+	{32, 2, 128}, {32, 4, 256}, {32, 6, 384},
+	{32, 8, 512}, {32, 12, 768},
 
-    //end flag
-    {0xff, 0, 0},
+	/* end flag */
+	{0xff, 0, 0},
 };
 
-//TX RATIO value
-static __mclk_set_inf  MCLK_INF[] =
-{
-	//88.2k bitrate    //2
-    { 88200, 128,  2, 1}, { 88200, 256,  2, 1},
+/* TX RATIO value */
+static __mclk_set_inf MCLK_INF[] = {
+	/* 88.2k bitrate //2 */
+	{ 88200, 128, 2, 1}, { 88200, 256, 2, 1},
 
-	 //22.05k bitrate   //8
-    { 22050, 128,  8, 1}, { 22050, 256,  8, 1},
-    { 22050, 512,  8, 1},
+	/* 22.05k bitrate //8 */
+	{ 22050, 128, 8, 1}, { 22050, 256, 8, 1},
+	{ 22050, 512, 8, 1},
 
-	// 24k bitrate   //8
-    { 24000, 128,  8, 0}, { 24000, 256, 8, 0}, { 24000, 512, 8, 0},
+	/* 24k bitrate //8 */
+	{ 24000, 128, 8, 0}, { 24000, 256, 8, 0}, { 24000, 512, 8, 0},
 
-    // 32k bitrate   //2.048MHz   24/4 = 6
-    { 32000, 128,  6, 0}, { 32000, 192,  6, 0}, { 32000, 384,  6, 0},
-    { 32000, 768,  6, 0},
+	/* 32k bitrate //2.048MHz 24/4 = 6 */
+	{ 32000, 128, 6, 0}, { 32000, 192, 6, 0}, { 32000, 384, 6, 0},
+	{ 32000, 768, 6, 0},
 
-     // 48K bitrate   3.072  Mbit/s   16/4 = 4
-    { 48000, 128,  4, 0}, { 48000, 256,  4, 0}, { 48000, 512, 4, 0},
+	/* 48K bitrate 3.072Mbit/s 16/4 = 4 */
+	{ 48000, 128, 4, 0}, { 48000, 256, 4, 0}, { 48000, 512, 4, 0},
 
-    // 96k bitrate  6.144MHZ   8/4 = 2
-    { 96000, 128 , 2, 0}, { 96000, 256,  2, 0},
+	/* 96k bitrate 6.144MHZ 8/4 = 2 */
+	{ 96000, 128 , 2, 0}, { 96000, 256, 2, 0},
 
-    //192k bitrate   12.288MHZ  4/4 = 1
-    {192000, 128,  1, 0},
+	/* 192k bitrate 12.288MHZ 4/4 = 1 */
+	{192000, 128, 1, 0},
 
-    //44.1k bitrate  2.8224MHz   16/4 = 4
-    { 44100, 128,  4, 1}, { 44100, 256,  4, 1}, { 44100, 512,  4, 1},
+	/* 44.1k bitrate 2.8224MHz 16/4 = 4 */
+	{ 44100, 128, 4, 1}, { 44100, 256, 4, 1}, { 44100, 512, 4, 1},
 
-     //176.4k bitrate  11.2896MHZ 4/4 = 1
-    {176400, 128, 1, 1},
+	/* 176.4k bitrate 11.2896MHZ 4/4 = 1 */
+	{176400, 128, 1, 1},
 
-    //end flag 0xffffffff
-    {0xffffffff, 0, 0, 0},
+	/* end flag 0xffffffff */
+	{0xffffffff, 0, 0, 0},
 };
 
 static s32 get_clock_divder(u32 sample_rate, u32 sample_width, u32 * mclk_div, u32* mpll, u32* bclk_div, u32* mult_fs)
