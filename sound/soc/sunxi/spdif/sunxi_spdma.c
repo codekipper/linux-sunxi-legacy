@@ -33,9 +33,6 @@
 
 #include "sunxi_spdif.h"
 
-static volatile unsigned int dmasrc;
-static volatile unsigned int dmadst;
-
 static const struct snd_pcm_hardware sunxi_pcm_hardware = {
 	.info			= SNDRV_PCM_INFO_INTERLEAVED |
 					SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -267,6 +264,9 @@ static int sunxi_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 
 static snd_pcm_uframes_t sunxi_pcm_pointer(struct snd_pcm_substream *substream)
 {
+	static volatile unsigned int dmasrc;
+	static volatile unsigned int dmadst;
+
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct sunxi_runtime_data *prtd = runtime->private_data;
 	unsigned long res = 0;

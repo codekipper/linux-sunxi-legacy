@@ -37,6 +37,12 @@
 #include "sunxi_spdif.h"
 
 static int regsave[6];
+struct sunxi_spdif_info sunxi_spdif;
+static u32 spdif_handle;
+static struct clk *spdif_apbclk;
+static struct clk *spdif_pll2clk;
+static struct clk *spdif_pllx8;
+static struct clk *spdif_moduleclk;
 
 static struct sunxi_dma_params sunxi_spdif_stereo_out = {
 	.client.name	=	"SPDIF out",
@@ -53,10 +59,6 @@ static struct sunxi_dma_params sunxi_spdif_stereo_in = {
 #endif
 	.dma_addr	=	SUNXI_SPDIFBASE + SUNXI_SPDIF_RXFIFO,
 };
-
-struct sunxi_spdif_info sunxi_spdif;
-static u32 spdif_handle;
-static struct clk *spdif_apbclk, *spdif_pll2clk, *spdif_pllx8, *spdif_moduleclk;
 
 void sunxi_snd_txctrl(struct snd_pcm_substream *substream, int on)
 {
