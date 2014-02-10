@@ -33,15 +33,19 @@
 
 #include "sunxi_spdif.h"
 
-static volatile unsigned int dmasrc = 0;
-static volatile unsigned int dmadst = 0;
+static volatile unsigned int dmasrc;
+static volatile unsigned int dmadst;
 
 static const struct snd_pcm_hardware sunxi_pcm_hardware = {
-	.info			= SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_BLOCK_TRANSFER |
-				      SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID |
-				      SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_RESUME,
+	.info			= SNDRV_PCM_INFO_INTERLEAVED |
+					SNDRV_PCM_INFO_BLOCK_TRANSFER |
+					SNDRV_PCM_INFO_MMAP |
+					SNDRV_PCM_INFO_MMAP_VALID |
+					SNDRV_PCM_INFO_PAUSE |
+					SNDRV_PCM_INFO_RESUME,
 	.formats		= SNDRV_PCM_FMTBIT_S16_LE,
-	.rates			= SNDRV_PCM_RATE_8000_192000 | SNDRV_PCM_RATE_KNOT,
+	.rates			= SNDRV_PCM_RATE_8000_192000 |
+					SNDRV_PCM_RATE_KNOT,
 	.rate_min		= 8000,
 	.rate_max		= 192000,
 	.channels_min		= 1,
@@ -75,21 +79,19 @@ static void sunxi_pcm_enqueue(struct snd_pcm_substream *substream)
 
 	unsigned long len = prtd->dma_period;
 
-  	limit = prtd->dma_limit;
-  	while(prtd->dma_loaded < limit){
-		if((pos + len) > prtd->dma_end){
-			len  = prtd->dma_end - pos;
-		}
+	limit = prtd->dma_limit;
+	while (prtd->dma_loaded < limit) {
+		if ((pos + len) > prtd->dma_end)
+			len = prtd->dma_end - pos;
 
 		ret = sunxi_dma_enqueue(prtd->params, pos, len, 0);
 		if (ret == 0) {
 			prtd->dma_loaded++;
 			pos += prtd->dma_period;
-			if(pos >= prtd->dma_end)
+			if (pos >= prtd->dma_end)
 				pos = prtd->dma_start;
-		} else {
+		} else
 			break;
-		  }
 	}
 	prtd->dma_pos = pos;
 }
@@ -100,9 +102,8 @@ static void sunxi_audio_buffdone(struct sunxi_dma_params *dma, void *dev_id)
 	struct snd_pcm_substream *substream = dev_id;
 
 	prtd = substream->runtime->private_data;
-		if (substream) {
-			snd_pcm_period_elapsed(substream);
-		}
+	if (substream)
+		snd_pcm_period_elapsed(substream);
 
 	spin_lock(&prtd->lock);
 	{
@@ -119,8 +120,8 @@ static int sunxi_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct sunxi_runtime_data *prtd = runtime->private_data;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	unsigned long totbytes = params_buffer_bytes(params);
-	struct sunxi_dma_params *dma =
-					snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
+	struct sunxi_dma_params *dma = snd_soc_dai_get_dma_data(rtd->cpu_dai,
+								substream);
 	int ret = 0;
 	if (!dma)
 		return 0;
@@ -128,13 +129,12 @@ static int sunxi_pcm_hw_params(struct snd_pcm_substream *substream,
 	if (prtd->params == NULL) {
 		prtd->params = dma;
 		ret = sunxi_dma_request(prtd->params, 0);
-		if (ret < 0) {
-				return ret;
-		}
+		if (ret < 0)
+			return ret;
 	}
 
 	if (sunxi_dma_set_callback(prtd->params, sunxi_audio_buffdone,
-							    substream) != 0) {
+							substream) != 0) {
 		sunxi_dma_release(prtd->params);
 		prtd->params = NULL;
 		return -EINVAL;
@@ -181,18 +181,18 @@ static int sunxi_pcm_prepare(struct snd_pcm_substream *substream)
 	if (!prtd->params)
 		return 0;
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK){
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 #if defined CONFIG_ARCH_SUN4I || defined CONFIG_ARCH_SUN5I
 		struct dma_hw_conf spdif_dma_conf;
-		spdif_dma_conf.drqsrc_type  = DRQ_TYPE_SDRAM;
-		spdif_dma_conf.drqdst_type  = DRQ_TYPE_SPDIF;
-		spdif_dma_conf.xfer_type    = DMAXFER_D_BHALF_S_BHALF;
-		spdif_dma_conf.address_type = DMAADDRT_D_FIX_S_INC;
-		spdif_dma_conf.dir          = SW_DMA_WDEV;
-		spdif_dma_conf.reload       = 0;
-		spdif_dma_conf.hf_irq       = SW_DMA_IRQ_FULL;
-		spdif_dma_conf.from         = prtd->dma_start;
-		spdif_dma_conf.to           = prtd->params->dma_addr;
+		spdif_dma_conf.drqsrc_type	= DRQ_TYPE_SDRAM;
+		spdif_dma_conf.drqdst_type	= DRQ_TYPE_SPDIF;
+		spdif_dma_conf.xfer_type	= DMAXFER_D_BHALF_S_BHALF;
+		spdif_dma_conf.address_type	= DMAADDRT_D_FIX_S_INC;
+		spdif_dma_conf.dir		= SW_DMA_WDEV;
+		spdif_dma_conf.reload		= 0;
+		spdif_dma_conf.hf_irq		= SW_DMA_IRQ_FULL;
+		spdif_dma_conf.from		= prtd->dma_start;
+		spdif_dma_conf.to		= prtd->params->dma_addr;
 #else
 		dma_config_t spdif_dma_conf;
 		memset(&spdif_dma_conf, 0, sizeof(spdif_dma_conf));
@@ -205,21 +205,22 @@ static int sunxi_pcm_prepare(struct snd_pcm_substream *substream)
 		spdif_dma_conf.bconti_mode = false;
 		spdif_dma_conf.irq_spt = CHAN_IRQ_FD;
 		spdif_dma_conf.src_drq_type = N_SRC_SDRAM;
-		spdif_dma_conf.dst_drq_type = N_DST_SPDIF_TX;//DRQDST_SPDIFTX;
+		spdif_dma_conf.dst_drq_type = N_DST_SPDIF_TX;
 #endif
 		ret = sunxi_dma_config(prtd->params, &spdif_dma_conf, 0);
 	} else {
 #if defined CONFIG_ARCH_SUN4I || defined CONFIG_ARCH_SUN5I
 		struct dma_hw_conf spdif_dma_conf;
-		spdif_dma_conf.drqsrc_type  = DRQ_TYPE_SDRAM;
-		spdif_dma_conf.drqdst_type  = DRQ_TYPE_SPDIF;
-		spdif_dma_conf.xfer_type    = DMAXFER_D_BWORD_S_BWORD;
-		spdif_dma_conf.address_type = DMAADDRT_D_INC_S_FIX;
-		spdif_dma_conf.dir          = SW_DMA_RDEV;
-		spdif_dma_conf.reload       = 1;
-		spdif_dma_conf.hf_irq       = SW_DMA_IRQ_FULL|SW_DMA_IRQ_HALF;
-		spdif_dma_conf.from         = prtd->params->dma_addr;
-		spdif_dma_conf.to           = prtd->dma_start;
+		spdif_dma_conf.drqsrc_type	= DRQ_TYPE_SDRAM;
+		spdif_dma_conf.drqdst_type	= DRQ_TYPE_SPDIF;
+		spdif_dma_conf.xfer_type	= DMAXFER_D_BWORD_S_BWORD;
+		spdif_dma_conf.address_type	= DMAADDRT_D_INC_S_FIX;
+		spdif_dma_conf.dir		= SW_DMA_RDEV;
+		spdif_dma_conf.reload		= 1;
+		spdif_dma_conf.hf_irq		= SW_DMA_IRQ_FULL |
+							SW_DMA_IRQ_HALF;
+		spdif_dma_conf.from		= prtd->params->dma_addr;
+		spdif_dma_conf.to		= prtd->dma_start;
 		ret = sunxi_dma_config(prtd->params, &spdif_dma_conf, 0);
 #else
 		return -EINVAL;
@@ -273,18 +274,18 @@ static snd_pcm_uframes_t sunxi_pcm_pointer(struct snd_pcm_substream *substream)
 
 	spin_lock(&prtd->lock);
 	sunxi_dma_getcurposition(prtd->params,
-				 (dma_addr_t*)&dmasrc, (dma_addr_t*)&dmadst);
+				(dma_addr_t *)&dmasrc, (dma_addr_t *)&dmadst);
 
-	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE){
+	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
 		res = dmadst - prtd->dma_start;
-	} else {
-		offset = bytes_to_frames(runtime, dmasrc + prtd->dma_period - runtime->dma_addr);
-	}
+	else
+		offset = bytes_to_frames(runtime, dmasrc +
+					prtd->dma_period - runtime->dma_addr);
 	spin_unlock(&prtd->lock);
 
-	if(offset >= runtime->buffer_size)
+	if (offset >= runtime->buffer_size)
 		offset = 0;
-		return offset;
+	return offset;
 }
 
 static int sunxi_pcm_open(struct snd_pcm_substream *substream)
@@ -320,9 +321,9 @@ static int sunxi_pcm_mmap(struct snd_pcm_substream *substream,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
 	return dma_mmap_writecombine(substream->pcm->card->dev, vma,
-				     runtime->dma_area,
-				     runtime->dma_addr,
-				     runtime->dma_bytes);
+						runtime->dma_area,
+						runtime->dma_addr,
+						runtime->dma_bytes);
 }
 
 static struct snd_pcm_ops sunxi_pcm_ops = {
@@ -347,7 +348,7 @@ static int sunxi_pcm_preallocate_dma_buffer(struct snd_pcm *pcm, int stream)
 	buf->dev.dev = pcm->card->dev;
 	buf->private_data = NULL;
 	buf->area = dma_alloc_writecombine(pcm->card->dev, size,
-					   &buf->addr, GFP_KERNEL);
+							&buf->addr, GFP_KERNEL);
 	if (!buf->area)
 		return -ENOMEM;
 	buf->bytes = size;
@@ -370,7 +371,7 @@ static void sunxi_pcm_free_dma_buffers(struct snd_pcm *pcm)
 			continue;
 
 		dma_free_writecombine(pcm->card->dev, buf->bytes,
-				      buf->area, buf->addr);
+							buf->area, buf->addr);
 		buf->area = NULL;
 	}
 }
@@ -406,7 +407,7 @@ static int sunxi_pcm_new(struct snd_soc_pcm_runtime *rtd)
 }
 
 static struct snd_soc_platform_driver sunxi_soc_platform = {
-	.ops  		=   &sunxi_pcm_ops,
+	.ops		=	&sunxi_pcm_ops,
 	.pcm_new	=	sunxi_pcm_new,
 	.pcm_free	=	sunxi_pcm_free_dma_buffers,
 };

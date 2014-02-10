@@ -41,15 +41,17 @@ static struct snd_pcm_hw_constraint_list hw_constraints_rates = {
 static int sunxi_sndspdif_startup(struct snd_pcm_substream *substream)
 {
 	int ret = 0;
-	#ifdef ENFORCE_RATES
-		struct snd_pcm_runtime *runtime = substream->runtime;;
-	#endif
+#ifdef ENFORCE_RATES
+	struct snd_pcm_runtime *runtime = substream->runtime;
+#endif
 	if (!ret) {
-	#ifdef ENFORCE_RATES
-		ret = snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_RATE, &hw_constraints_rates);
+#ifdef ENFORCE_RATES
+		ret = snd_pcm_hw_constraint_list(runtime, 0,
+						SNDRV_PCM_HW_PARAM_RATE,
+						&hw_constraints_rates);
 		if (ret < 0)
 			return ret;
-	#endif
+#endif
 	}
 	return ret;
 }
@@ -132,27 +134,29 @@ static __mclk_set_inf MCLK_INF[] = {
 	{0xffffffff, 0, 0, 0},
 };
 
-static s32 get_clock_divder(u32 sample_rate, u32 sample_width, u32 * mclk_div, u32* mpll, u32* bclk_div, u32* mult_fs)
+static s32 get_clock_divder(u32 sample_rate, u32 sample_width, u32 *mclk_div,
+					u32 *mpll, u32 *bclk_div, u32 *mult_fs)
 {
 	u32 i, j, ret = -EINVAL;
 
-	for(i=0; i< 100; i++) {
-		 if((MCLK_INF[i].samp_rate == sample_rate) &&
-		 	((MCLK_INF[i].mult_fs == 256) || (MCLK_INF[i].mult_fs == 128))) {
-			  for(j=0; j<ARRAY_SIZE(BCLK_INF); j++) {
-					if((BCLK_INF[j].bitpersamp == sample_width) &&
-						(BCLK_INF[j].mult_fs == MCLK_INF[i].mult_fs)) {
-						 *mclk_div = MCLK_INF[i].clk_div;
-						 *mpll = MCLK_INF[i].mpll;
-						 *bclk_div = BCLK_INF[j].clk_div;
-						 *mult_fs = MCLK_INF[i].mult_fs;
-						 ret = 0;
-						 break;
-					}
-			  }
-		 }
-		 else if(MCLK_INF[i].samp_rate == 0xffffffff)
-		 	break;
+	for (i = 0; i < 100; i++) {
+		if ((MCLK_INF[i].samp_rate == sample_rate) &&
+					((MCLK_INF[i].mult_fs == 256) ||
+					(MCLK_INF[i].mult_fs == 128))) {
+			for (j = 0; j < ARRAY_SIZE(BCLK_INF); j++) {
+				if ((BCLK_INF[j].bitpersamp == sample_width) &&
+					(BCLK_INF[j].mult_fs ==
+							MCLK_INF[i].mult_fs)) {
+					*mclk_div = MCLK_INF[i].clk_div;
+					*mpll = MCLK_INF[i].mpll;
+					*bclk_div = BCLK_INF[j].clk_div;
+					*mult_fs = MCLK_INF[i].mult_fs;
+					ret = 0;
+					break;
+				}
+			}
+		} else if (MCLK_INF[i].samp_rate == 0xffffffff)
+			break;
 	}
 
 	return ret;
@@ -166,7 +170,7 @@ static int sunxi_sndspdif_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	int ret = 0;
 	unsigned long rate = params_rate(params);
-	u32 mclk_div=0, mpll=0, bclk_div=0, mult_fs=0;
+	u32 mclk_div = 0, mpll = 0, bclk_div = 0, mult_fs = 0;
 
 	get_clock_divder(rate, 32, &mclk_div, &mpll, &bclk_div, &mult_fs);
 
@@ -203,26 +207,26 @@ static int sunxi_sndspdif_hw_params(struct snd_pcm_substream *substream,
 }
 
 static struct snd_soc_ops sunxi_sndspdif_ops = {
-	.startup 	= sunxi_sndspdif_startup,
-	.shutdown 	= sunxi_sndspdif_shutdown,
-	.hw_params 	= sunxi_sndspdif_hw_params,
+	.startup	= sunxi_sndspdif_startup,
+	.shutdown	= sunxi_sndspdif_shutdown,
+	.hw_params	= sunxi_sndspdif_hw_params,
 };
 
 static struct snd_soc_dai_link sunxi_sndspdif_dai_link = {
-	.name 			= "SPDIF",
-	.stream_name 	= "SUNXI-SPDIF",
-	.cpu_dai_name 	= "sunxi-spdif.0",
+	.name		= "SPDIF",
+	.stream_name	= "SUNXI-SPDIF",
+	.cpu_dai_name	= "sunxi-spdif.0",
 	.codec_dai_name = "sndspdif",
-	.platform_name 	= "sunxi-spdif-pcm-audio.0",
-	.codec_name 	= "sunxi-spdif-codec.0",
-	.ops 			= &sunxi_sndspdif_ops,
+	.platform_name	= "sunxi-spdif-pcm-audio.0",
+	.codec_name	= "sunxi-spdif-codec.0",
+	.ops		= &sunxi_sndspdif_ops,
 };
 
 static struct snd_soc_card snd_soc_sunxi_sndspdif = {
-	.name 		= "sunxi-sndspdif",
+	.name		= "sunxi-sndspdif",
 	.owner		= THIS_MODULE,
-	.dai_link 	= &sunxi_sndspdif_dai_link,
-	.num_links 	= 1,
+	.dai_link	= &sunxi_sndspdif_dai_link,
+	.num_links	= 1,
 };
 
 static int __devinit sunxi_sndspdif_probe(struct platform_device *pdev)

@@ -23,7 +23,7 @@
 #include <plat/sys_config.h>
 #include <linux/io.h>
 
-#define SNDSPDIF_RATES  (SNDRV_PCM_RATE_8000_192000|SNDRV_PCM_RATE_KNOT)
+#define SNDSPDIF_RATES (SNDRV_PCM_RATE_8000_192000 | SNDRV_PCM_RATE_KNOT)
 #define SNDSPDIF_FORMATS (SNDRV_PCM_FMTBIT_S16_LE)
 
 struct sndspdif_priv {
@@ -58,18 +58,18 @@ static int sndspdif_hw_params(struct snd_pcm_substream *substream,
 }
 
 static int sndspdif_set_dai_sysclk(struct snd_soc_dai *codec_dai,
-				  int clk_id, unsigned int freq, int dir)
+				int clk_id, unsigned int freq, int dir)
 {
 	return 0;
 }
 
-static int sndspdif_set_dai_clkdiv(struct snd_soc_dai *codec_dai, int div_id, int div)
+static int sndspdif_set_dai_clkdiv(struct snd_soc_dai *codec_dai, int div_id,
+									int div)
 {
 	return 0;
 }
 
-static int sndspdif_set_dai_fmt(struct snd_soc_dai *codec_dai,
-			       unsigned int fmt)
+static int sndspdif_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 {
 	return 0;
 }
@@ -103,8 +103,8 @@ static int sndspdif_soc_probe(struct snd_soc_codec *codec)
 	struct sndspdif_priv *sndspdif;
 
 	sndspdif = kzalloc(sizeof(struct sndspdif_priv), GFP_KERNEL);
-	if(sndspdif == NULL){
-		printk("%s,%d\n",__func__,__LINE__);
+	if (sndspdif == NULL) {
+		printk("%s,%d\n", __func__, __LINE__);
 		return -ENOMEM;
 	}
 	snd_soc_codec_set_drvdata(codec, sndspdif);
@@ -123,13 +123,14 @@ static int sndspdif_soc_remove(struct snd_soc_codec *codec)
 }
 
 static struct snd_soc_codec_driver soc_codec_dev_sndspdif = {
-	.probe 	=	sndspdif_soc_probe,
-	.remove =   sndspdif_soc_remove,
+	.probe	= sndspdif_soc_probe,
+	.remove = sndspdif_soc_remove,
 };
 
 static int __devinit sndspdif_codec_probe(struct platform_device *pdev)
 {
-	return snd_soc_register_codec(&pdev->dev, &soc_codec_dev_sndspdif, &sndspdif_dai, 1);
+	return snd_soc_register_codec(&pdev->dev, &soc_codec_dev_sndspdif,
+							&sndspdif_dai, 1);
 }
 
 static int __devexit sndspdif_codec_remove(struct platform_device *pdev)

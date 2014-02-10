@@ -43,19 +43,19 @@ static struct sunxi_dma_params sunxi_spdif_stereo_out = {
 #if defined CONFIG_ARCH_SUN4I || defined CONFIG_ARCH_SUN5I
 	.channel	=	DMACH_NSPDIF,
 #endif
-	.dma_addr 	=	SUNXI_SPDIFBASE + SUNXI_SPDIF_TXFIFO,
+	.dma_addr	=	SUNXI_SPDIFBASE + SUNXI_SPDIF_TXFIFO,
 };
 
 static struct sunxi_dma_params sunxi_spdif_stereo_in = {
-	.client.name	=	"SPDIF out",
+	.client.name	=	"SPDIF in",
 #if defined CONFIG_ARCH_SUN4I || defined CONFIG_ARCH_SUN5I
 	.channel	=	DMACH_NSPDIF,
 #endif
-	.dma_addr 	=	SUNXI_SPDIFBASE + SUNXI_SPDIF_RXFIFO,
+	.dma_addr	=	SUNXI_SPDIFBASE + SUNXI_SPDIF_RXFIFO,
 };
 
 struct sunxi_spdif_info sunxi_spdif;
-static u32 spdif_handle = 0;
+static u32 spdif_handle;
 static struct clk *spdif_apbclk, *spdif_pll2clk, *spdif_pllx8, *spdif_moduleclk;
 
 void sunxi_snd_txctrl(struct snd_pcm_substream *substream, int on)
@@ -174,14 +174,14 @@ static int sunxi_spdif_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 }
 
 static int sunxi_spdif_hw_params(struct snd_pcm_substream *substream,
-																struct snd_pcm_hw_params *params,
-																struct snd_soc_dai *dai)
+					struct snd_pcm_hw_params *params,
+					struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct sunxi_dma_params *dma_data;
 
 	/* play or record */
-	if(substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		dma_data = &sunxi_spdif_stereo_out;
 	else
 		dma_data = &sunxi_spdif_stereo_in;
@@ -192,55 +192,52 @@ static int sunxi_spdif_hw_params(struct snd_pcm_substream *substream,
 }
 
 static int sunxi_spdif_trigger(struct snd_pcm_substream *substream,
-                              int cmd, struct snd_soc_dai *dai)
+					int cmd, struct snd_soc_dai *dai)
 {
 	int ret = 0;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct sunxi_dma_params *dma_data =
-					snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
+			snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 
 	switch (cmd) {
-		case SNDRV_PCM_TRIGGER_START:
-		case SNDRV_PCM_TRIGGER_RESUME:
-		case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-			if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
-				sunxi_snd_rxctrl(1);
-			} else {
-				sunxi_snd_txctrl(substream, 1);
-			}
-			sunxi_dma_started(dma_data);
-			break;
-		case SNDRV_PCM_TRIGGER_STOP:
-		case SNDRV_PCM_TRIGGER_SUSPEND:
-		case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-			if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
-				sunxi_snd_rxctrl(0);
-			} else {
-			  sunxi_snd_txctrl(substream, 0);
-			}
-			break;
-		default:
-			ret = -EINVAL;
-			break;
+	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_RESUME:
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
+			sunxi_snd_rxctrl(1);
+		else
+			sunxi_snd_txctrl(substream, 1);
+		sunxi_dma_started(dma_data);
+		break;
+	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
+			sunxi_snd_rxctrl(0);
+		else
+			sunxi_snd_txctrl(substream, 0);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
 	}
 
-		return ret;
+	return ret;
 }
 
 /* freq: 1: 22.5792MHz 0: 24.576MHz */
 static int sunxi_spdif_set_sysclk(struct snd_soc_dai *cpu_dai, int clk_id,
-                                 unsigned int freq, int dir)
+						unsigned int freq, int dir)
 {
-	if (!freq) {
+	if (!freq)
 		clk_set_rate(spdif_pll2clk, 24576000);
-	} else {
+	else
 		clk_set_rate(spdif_pll2clk, 22579200);
-	}
-
 	return 0;
 }
 
-static int sunxi_spdif_set_clkdiv(struct snd_soc_dai *cpu_dai, int div_id, int div)
+static int sunxi_spdif_set_clkdiv(struct snd_soc_dai *cpu_dai, int div_id,
+									int div)
 {
 	u32 reg_val = 0;
 
@@ -250,150 +247,200 @@ static int sunxi_spdif_set_clkdiv(struct snd_soc_dai *cpu_dai, int div_id, int d
 
 	reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA1);
 	reg_val &= ~(SUNXI_SPDIF_TXCHSTA1_ORISAMFREQ(0xf));
-  	writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA1);
+	writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA1);
 
-	switch(div_id) {
-		case SUNXI_DIV_MCLK:
-		{
-			reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_TXCFG);
-			reg_val &= ~SUNXI_SPDIF_TXCFG_TXRATIO(0x1F);
-			reg_val |= SUNXI_SPDIF_TXCFG_TXRATIO(div-1);
-			writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_TXCFG);
+	switch (div_id) {
+	case SUNXI_DIV_MCLK: {
+		reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_TXCFG);
+		reg_val &= ~SUNXI_SPDIF_TXCFG_TXRATIO(0x1F);
+		reg_val |= SUNXI_SPDIF_TXCFG_TXRATIO(div-1);
+		writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_TXCFG);
 
-			if(clk_get_rate(spdif_pll2clk) == 24576000)
-			{
-				switch(div)
-				{
-					/* 24KHZ */
-					case 8:
-						reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA0);
-						reg_val |= (SUNXI_SPDIF_TXCHSTA0_SAMFREQ(0x6));
-						writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA0);
+		if (clk_get_rate(spdif_pll2clk) == 24576000) {
+			switch (div) {
+			/* 24KHZ */
+			case 8:
+				reg_val = readl(sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA0);
+				reg_val |= (SUNXI_SPDIF_TXCHSTA0_SAMFREQ(0x6));
+				writel(reg_val, sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA0);
 
-						reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA1);
-						reg_val |= (SUNXI_SPDIF_TXCHSTA1_ORISAMFREQ(0x9));
-						writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA1);
-						break;
+				reg_val = readl(sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA1);
+				reg_val |=
+					(SUNXI_SPDIF_TXCHSTA1_ORISAMFREQ(0x9));
+				writel(reg_val, sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA1);
+				break;
 
-					/* 32KHZ */
-					case 6:
-						reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA0);
-						reg_val |= (SUNXI_SPDIF_TXCHSTA0_SAMFREQ(0x3));
-						writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA0);
+			/* 32KHZ */
+			case 6:
+				reg_val = readl(sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA0);
+				reg_val |= (SUNXI_SPDIF_TXCHSTA0_SAMFREQ(0x3));
+				writel(reg_val, sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA0);
 
-						reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA1);
-						reg_val |= (SUNXI_SPDIF_TXCHSTA1_ORISAMFREQ(0xC));
-						writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA1);
-						break;
+				reg_val = readl(sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA1);
+				reg_val |=
+					(SUNXI_SPDIF_TXCHSTA1_ORISAMFREQ(0xC));
+				writel(reg_val, sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA1);
+				break;
 
-					/* 48KHZ */
-					case 4:
-						reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA0);
-						reg_val |= (SUNXI_SPDIF_TXCHSTA0_SAMFREQ(0x2));
-						writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA0);
+			/* 48KHZ */
+			case 4:
+				reg_val = readl(sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA0);
+				reg_val |= (SUNXI_SPDIF_TXCHSTA0_SAMFREQ(0x2));
+				writel(reg_val, sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA0);
 
-						reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA1);
-						reg_val |= (SUNXI_SPDIF_TXCHSTA1_ORISAMFREQ(0xD));
-						writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA1);
-						break;
+				reg_val = readl(sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA1);
+				reg_val |=
+					(SUNXI_SPDIF_TXCHSTA1_ORISAMFREQ(0xD));
+				writel(reg_val, sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA1);
+				break;
 
-					/* 96KHZ */
-					case 2:
-						reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA0);
-						reg_val |= (SUNXI_SPDIF_TXCHSTA0_SAMFREQ(0xA));
-						writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA0);
+			/* 96KHZ */
+			case 2:
+				reg_val = readl(sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA0);
+				reg_val |= (SUNXI_SPDIF_TXCHSTA0_SAMFREQ(0xA));
+				writel(reg_val, sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA0);
 
-						reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA1);
-						reg_val |= (SUNXI_SPDIF_TXCHSTA1_ORISAMFREQ(0x5));
-						writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA1);
-						break;
+				reg_val = readl(sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA1);
+				reg_val |=
+					(SUNXI_SPDIF_TXCHSTA1_ORISAMFREQ(0x5));
+				writel(reg_val, sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA1);
+				break;
 
-					/* 192KHZ */
-					case 1:
-						reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA0);
-						reg_val |= (SUNXI_SPDIF_TXCHSTA0_SAMFREQ(0xE));
-						writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA0);
+			/* 192KHZ */
+			case 1:
+				reg_val = readl(sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA0);
+				reg_val |= (SUNXI_SPDIF_TXCHSTA0_SAMFREQ(0xE));
+				writel(reg_val, sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA0);
 
-						reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA1);
-						reg_val |= (SUNXI_SPDIF_TXCHSTA1_ORISAMFREQ(0x1));
-						writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA1);
-						break;
+				reg_val = readl(sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA1);
+				reg_val |=
+					(SUNXI_SPDIF_TXCHSTA1_ORISAMFREQ(0x1));
+				writel(reg_val, sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA1);
+				break;
 
-					default:
-						reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA0);
-						reg_val |= (SUNXI_SPDIF_TXCHSTA0_SAMFREQ(1));
-						writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA0);
+			default:
+				reg_val = readl(sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA0);
+				reg_val |= (SUNXI_SPDIF_TXCHSTA0_SAMFREQ(1));
+				writel(reg_val, sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA0);
 
-						reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA1);
-						reg_val |= (SUNXI_SPDIF_TXCHSTA1_ORISAMFREQ(0));
-						writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA1);
-						break;
-				}
-			} else {  /* 22.5792MHz */
-				switch(div)
-				{
-					/* 22.05khz */
-					case 8:
-						reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA0);
-						reg_val |= (SUNXI_SPDIF_TXCHSTA0_SAMFREQ(0x4));
-						writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA0);
+				reg_val = readl(sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA1);
+				reg_val |= (SUNXI_SPDIF_TXCHSTA1_ORISAMFREQ(0));
+				writel(reg_val, sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA1);
+				break;
+			}
+		} else {
+			/* 22.5792MHz */
+			switch (div) {
+			/* 22.05KHZ */
+			case 8:
+				reg_val = readl(sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA0);
+				reg_val |= (SUNXI_SPDIF_TXCHSTA0_SAMFREQ(0x4));
+				writel(reg_val, sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA0);
 
-						reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA1);
-						reg_val |= (SUNXI_SPDIF_TXCHSTA1_ORISAMFREQ(0xb));
-						writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA1);
-						break;
+				reg_val = readl(sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA1);
+				reg_val |=
+					(SUNXI_SPDIF_TXCHSTA1_ORISAMFREQ(0xb));
+				writel(reg_val, sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA1);
+				break;
 
-					/* 44.1KHZ */
-					case 4:
-						reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA0);
-						reg_val |= (SUNXI_SPDIF_TXCHSTA0_SAMFREQ(0x0));
-						writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA0);
+			/* 44.1KHZ */
+			case 4:
+				reg_val = readl(sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA0);
+				reg_val |= (SUNXI_SPDIF_TXCHSTA0_SAMFREQ(0x0));
+				writel(reg_val, sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA0);
 
-						reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA1);
-						reg_val |= (SUNXI_SPDIF_TXCHSTA1_ORISAMFREQ(0xF));
-						writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA1);
-						break;
+				reg_val = readl(sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA1);
+				reg_val |=
+					(SUNXI_SPDIF_TXCHSTA1_ORISAMFREQ(0xF));
+				writel(reg_val, sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA1);
+				break;
 
-					/* 88.2khz */
-					case 2:
-						reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA0);
-						reg_val |= (SUNXI_SPDIF_TXCHSTA0_SAMFREQ(0x8));
-						writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA0);
+			/* 88.2KHZ */
+			case 2:
+				reg_val = readl(sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA0);
+				reg_val |= (SUNXI_SPDIF_TXCHSTA0_SAMFREQ(0x8));
+				writel(reg_val, sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA0);
 
-						reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA1);
-						reg_val |= (SUNXI_SPDIF_TXCHSTA1_ORISAMFREQ(0x7));
-						writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA1);
-						break;
+				reg_val = readl(sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA1);
+				reg_val |=
+					(SUNXI_SPDIF_TXCHSTA1_ORISAMFREQ(0x7));
+				writel(reg_val, sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA1);
+				break;
 
-					/* 176.4KHZ */
-					case 1:
-						reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA0);
-						reg_val |= (SUNXI_SPDIF_TXCHSTA0_SAMFREQ(0xC));
-						writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA0);
+			/* 176.4KHZ */
+			case 1:
+				reg_val = readl(sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA0);
+				reg_val |= (SUNXI_SPDIF_TXCHSTA0_SAMFREQ(0xC));
+				writel(reg_val, sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA0);
 
-						reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA1);
-						reg_val |= (SUNXI_SPDIF_TXCHSTA1_ORISAMFREQ(0x3));
-						writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA1);
-						break;
+				reg_val = readl(sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA1);
+				reg_val |=
+					(SUNXI_SPDIF_TXCHSTA1_ORISAMFREQ(0x3));
+				writel(reg_val, sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA1);
+				break;
 
-					default:
-						reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA0);
-						reg_val |= (SUNXI_SPDIF_TXCHSTA0_SAMFREQ(1));
-						writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA0);
+			default:
+				reg_val = readl(sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA0);
+				reg_val |= (SUNXI_SPDIF_TXCHSTA0_SAMFREQ(1));
+				writel(reg_val, sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA0);
 
-						reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA1);
-						reg_val |= (SUNXI_SPDIF_TXCHSTA1_ORISAMFREQ(0));
-						writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA1);
-						break;
-				}
+				reg_val = readl(sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA1);
+				reg_val |= (SUNXI_SPDIF_TXCHSTA1_ORISAMFREQ(0));
+				writel(reg_val, sunxi_spdif.regs +
+							SUNXI_SPDIF_TXCHSTA1);
+				break;
 			}
 		}
-		break;
-		case SUNXI_DIV_BCLK:
-		break;
+	}
+	break;
+	case SUNXI_DIV_BCLK:
+	break;
 
-		default:
-			return -EINVAL;
+	default:
+		return -EINVAL;
 	}
 
 	return 0;
@@ -403,6 +450,7 @@ static int sunxi_spdif_dai_probe(struct snd_soc_dai *dai)
 {
 	return 0;
 }
+
 static int sunxi_spdif_dai_remove(struct snd_soc_dai *dai)
 {
 	return 0;
@@ -412,7 +460,7 @@ static void spdifregsave(void)
 {
 	regsave[0] = readl(sunxi_spdif.regs + SUNXI_SPDIF_CTL);
 	regsave[1] = readl(sunxi_spdif.regs + SUNXI_SPDIF_TXCFG);
-	regsave[2] = readl(sunxi_spdif.regs + SUNXI_SPDIF_FCTL) | (0x3<<16);
+	regsave[2] = readl(sunxi_spdif.regs + SUNXI_SPDIF_FCTL) | (0x3 << 16);
 	regsave[3] = readl(sunxi_spdif.regs + SUNXI_SPDIF_INT);
 	regsave[4] = readl(sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA0);
 	regsave[5] = readl(sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA1);
@@ -428,7 +476,7 @@ static void spdifregrestore(void)
 	writel(regsave[5], sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA1);
 }
 
-//#ifdef CONFIG_PM
+#if 1 /* def CONFIG_PM */
 static int sunxi_spdif_suspend(struct snd_soc_dai *cpu_dai)
 {
 	u32 reg_val;
@@ -445,8 +493,10 @@ static int sunxi_spdif_suspend(struct snd_soc_dai *cpu_dai)
 
 	clk_disable(spdif_apbclk);
 
-	printk("[SPDIF]SPECIAL CLK 0x01c20068 = %#x, line= %d\n", *(volatile int*)0xF1C20068, __LINE__);
-	printk("[SPDIF]SPECIAL CLK 0x01c200C0 = %#x, line= %d\n", *(volatile int*)0xF1C200C0, __LINE__);
+	printk("[SPDIF]SPECIAL CLK 0x01c20068 = %#x, line= %d\n",
+					*(volatile int *)0xF1C20068, __LINE__);
+	printk("[SPDIF]SPECIAL CLK 0x01c200C0 = %#x, line= %d\n",
+					*(volatile int *)0xF1C200C0, __LINE__);
 
 	return 0;
 }
@@ -468,38 +518,44 @@ static int sunxi_spdif_resume(struct snd_soc_dai *cpu_dai)
 	reg_val |= SUNXI_SPDIF_CTL_GEN;
 	writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_CTL);
 
-	//printk("[SPDIF]PLL2 0x01c20008 = %#x\n", *(volatile int*)0xF1C20008);
-	printk("[SPDIF]SPECIAL CLK 0x01c20068 = %#x, line= %d\n", *(volatile int*)0xF1C20068, __LINE__);
-	printk("[SPDIF]SPECIAL CLK 0x01c200C0 = %#x, line = %d\n", *(volatile int*)0xF1C200C0, __LINE__);
+	/*printk("[SPDIF]PLL2 0x01c20008 = %#x\n",*(volatile int*)0xF1C20008);*/
+	printk("[SPDIF]SPECIAL CLK 0x01c20068 = %#x, line= %d\n",
+					*(volatile int *)0xF1C20068, __LINE__);
+	printk("[SPDIF]SPECIAL CLK 0x01c200C0 = %#x, line = %d\n",
+					*(volatile int *)0xF1C200C0, __LINE__);
 
 	return 0;
 }
+#endif
 
 #define SUNXI_SPDIF_RATES (SNDRV_PCM_RATE_8000_192000 | SNDRV_PCM_RATE_KNOT)
 static struct snd_soc_dai_ops sunxi_spdif_dai_ops = {
-	.trigger 		= sunxi_spdif_trigger,
-	.hw_params 	= sunxi_spdif_hw_params,
-	.set_fmt 		= sunxi_spdif_set_fmt,
-	.set_clkdiv = sunxi_spdif_set_clkdiv,
-	.set_sysclk = sunxi_spdif_set_sysclk,
+	.trigger		= sunxi_spdif_trigger,
+	.hw_params		= sunxi_spdif_hw_params,
+	.set_fmt		= sunxi_spdif_set_fmt,
+	.set_clkdiv		= sunxi_spdif_set_clkdiv,
+	.set_sysclk		= sunxi_spdif_set_sysclk,
 };
+
 static struct snd_soc_dai_driver sunxi_spdif_dai = {
-	.probe 		= sunxi_spdif_dai_probe,
-	.suspend 	= sunxi_spdif_suspend,
-	.resume 	= sunxi_spdif_resume,
-	.remove 	= sunxi_spdif_dai_remove,
-	.playback = {
-		.channels_min = 1,
-		.channels_max = 2,
-		.rates = SUNXI_SPDIF_RATES,
-	.formats = SNDRV_PCM_FMTBIT_S16_LE,},
+	.probe			= sunxi_spdif_dai_probe,
+	.suspend		= sunxi_spdif_suspend,
+	.resume			= sunxi_spdif_resume,
+	.remove			= sunxi_spdif_dai_remove,
+	.playback		= {
+		.channels_min	= 1,
+		.channels_max	= 2,
+		.rates		= SUNXI_SPDIF_RATES,
+		.formats	= SNDRV_PCM_FMTBIT_S16_LE,
+		},
 	.capture = {
-		.channels_min = 1,
-		.channels_max = 2,
-		.rates = SUNXI_SPDIF_RATES,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
-	.symmetric_rates = 1,
-	.ops = &sunxi_spdif_dai_ops,
+		.channels_min	= 1,
+		.channels_max	= 2,
+		.rates		= SUNXI_SPDIF_RATES,
+		.formats	= SNDRV_PCM_FMTBIT_S16_LE,
+		},
+	.symmetric_rates	= 1,
+	.ops			= &sunxi_spdif_dai_ops,
 };
 
 static int __devinit sunxi_spdif_dev_probe(struct platform_device *pdev)
@@ -508,13 +564,12 @@ static int __devinit sunxi_spdif_dev_probe(struct platform_device *pdev)
 	int ret = 0;
 
 	sunxi_spdif.regs = ioremap(SUNXI_SPDIFBASE, 0x100);
-	if(sunxi_spdif.regs == NULL)
+	if (sunxi_spdif.regs == NULL)
 		return -ENXIO;
 
 		spdif_apbclk = clk_get(NULL, "apb_spdif");
-		if(-1 == clk_enable(spdif_apbclk)){
+		if (-1 == clk_enable(spdif_apbclk))
 			printk("spdif_apbclk failed! line = %d\n", __LINE__);
-		}
 
 		spdif_pllx8 = clk_get(NULL, "audio_pllx8");
 
@@ -522,17 +577,17 @@ static int __devinit sunxi_spdif_dev_probe(struct platform_device *pdev)
 
 		spdif_moduleclk = clk_get(NULL, "spdif");
 
-		if(clk_set_parent(spdif_moduleclk, spdif_pll2clk)){
-			printk("try to set parent of spdif_moduleclk to spdif_pll2ck failed! line = %d\n",__LINE__);
-		}
+		if (clk_set_parent(spdif_moduleclk, spdif_pll2clk))
+			printk("try to set parent of spdif_moduleclk to "\
+				"spdif_pll2ck failed! line = %d\n", __LINE__);
 
-		if(clk_set_rate(spdif_moduleclk, 24576000/8)){
-			printk("set spdif_moduleclk clock freq to 24576000 failed! line = %d\n", __LINE__);
-		}
+		if (clk_set_rate(spdif_moduleclk, 24576000/8))
+			printk("set spdif_moduleclk clock freq to 24576000 "\
+				"failed! line = %d\n", __LINE__);
 
-		if(-1 == clk_enable(spdif_moduleclk)){
-			printk("open spdif_moduleclk failed! line = %d\n", __LINE__);
-		}
+		if (-1 == clk_enable(spdif_moduleclk))
+			printk("open spdif_moduleclk failed! line = %d\n",
+								__LINE__);
 
 		/* Global enbale */
 		reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_CTL);
