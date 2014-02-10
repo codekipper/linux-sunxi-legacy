@@ -123,8 +123,53 @@ void sunxi_snd_txctrl(struct snd_pcm_substream *substream, int on)
 	}
 }
 
-void sunxi_snd_rxctrl(int on)
+void sunxi_snd_rxctrl(struct snd_pcm_substream *substream, int on)
 {
+	u32 reg_val;
+
+	/* Flush RX FIFO */
+	reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_FCTL);
+	reg_val |= SUNXI_SPDIF_FCTL_FRX;
+	writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_FCTL);
+
+	/* Clear Interrupt Status */
+	reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_ISTA);
+	writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_ISTA);
+
+	/* Clear RX Counter */
+	writel(0, sunxi_spdif.regs + SUNXI_SPDIF_RXCNT);
+
+	if (on) {
+		/* SPDIF RX ENABLE */
+		reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_RXCFG);
+		reg_val |= SUNXI_SPDIF_RXCFG_RXEN;
+		writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_RXCFG);
+
+		/* DRQ ENABLE */
+		reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_INT);
+		reg_val |= SUNXI_SPDIF_INT_RXDRQEN;
+		writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_INT);
+
+		/* Global Enable*/
+		reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_CTL);
+		reg_val |= SUNXI_SPDIF_CTL_GEN;
+		writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_CTL);
+	} else {
+		/* SPDIF RX DISABLE */
+		reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_RXCFG);
+		reg_val &= ~SUNXI_SPDIF_RXCFG_RXEN;
+		writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_RXCFG);
+
+		/* DRQ DISABLE */
+		reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_INT);
+		reg_val &= ~SUNXI_SPDIF_INT_RXDRQEN;
+		writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_INT);
+
+		/* Global disable */
+		reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_CTL);
+		reg_val &= ~SUNXI_SPDIF_CTL_GEN;
+		writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_CTL);
+	}
 }
 
 static int sunxi_spdif_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
@@ -195,7 +240,7 @@ static int sunxi_spdif_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
-			sunxi_snd_rxctrl(1);
+			sunxi_snd_rxctrl(substream, 1);
 		else
 			sunxi_snd_txctrl(substream, 1);
 		sunxi_dma_started(dma_data);
@@ -204,7 +249,7 @@ static int sunxi_spdif_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
-			sunxi_snd_rxctrl(0);
+			sunxi_snd_rxctrl(substream, 0);
 		else
 			sunxi_snd_txctrl(substream, 0);
 		break;
