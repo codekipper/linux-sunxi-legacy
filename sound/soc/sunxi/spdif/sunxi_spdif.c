@@ -569,34 +569,34 @@ static int __devinit sunxi_spdif_dev_probe(struct platform_device *pdev)
 	if (sunxi_spdif.regs == NULL)
 		return -ENXIO;
 
-		spdif_apbclk = clk_get(NULL, "apb_spdif");
-		if (-1 == clk_enable(spdif_apbclk))
-			printk("spdif_apbclk failed! line = %d\n", __LINE__);
+	spdif_apbclk = clk_get(NULL, "apb_spdif");
+	if (-1 == clk_enable(spdif_apbclk))
+		printk("spdif_apbclk failed! line = %d\n", __LINE__);
 
-		spdif_pllx8 = clk_get(NULL, "audio_pllx8");
+	spdif_pllx8 = clk_get(NULL, "audio_pllx8");
 
-		spdif_pll2clk = clk_get(NULL, "audio_pll");
+	spdif_pll2clk = clk_get(NULL, "audio_pll");
 
-		spdif_moduleclk = clk_get(NULL, "spdif");
+	spdif_moduleclk = clk_get(NULL, "spdif");
 
-		if (clk_set_parent(spdif_moduleclk, spdif_pll2clk))
-			printk("try to set parent of spdif_moduleclk to "\
-				"spdif_pll2ck failed! line = %d\n", __LINE__);
+	if (clk_set_parent(spdif_moduleclk, spdif_pll2clk))
+		printk("try to set parent of spdif_moduleclk to "\
+			"spdif_pll2ck failed! line = %d\n", __LINE__);
 
-		if (clk_set_rate(spdif_moduleclk, 24576000/8))
-			printk("set spdif_moduleclk clock freq to 24576000 "\
-				"failed! line = %d\n", __LINE__);
+	if (clk_set_rate(spdif_moduleclk, 24576000/8))
+		printk("set spdif_moduleclk clock freq to 24576000 "\
+			"failed! line = %d\n", __LINE__);
 
-		if (-1 == clk_enable(spdif_moduleclk))
-			printk("open spdif_moduleclk failed! line = %d\n",
-								__LINE__);
+	if (-1 == clk_enable(spdif_moduleclk))
+		printk("open spdif_moduleclk failed! line = %d\n",
+							__LINE__);
 
-		/* Global enbale */
-		reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_CTL);
-		reg_val |= SUNXI_SPDIF_CTL_GEN;
-		writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_CTL);
+	/* Global enbale */
+	reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_CTL);
+	reg_val |= SUNXI_SPDIF_CTL_GEN;
+	writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_CTL);
 
-		ret = snd_soc_register_dai(&pdev->dev, &sunxi_spdif_dai);
+	ret = snd_soc_register_dai(&pdev->dev, &sunxi_spdif_dai);
 
 	return 0;
 }
