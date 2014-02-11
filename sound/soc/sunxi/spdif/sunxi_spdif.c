@@ -729,6 +729,28 @@ static struct snd_soc_dai_driver sunxi_spdif_dai = {
 	.ops			= &sunxi_spdif_dai_ops,
 };
 
+static struct snd_soc_dai_driver sun6i_spdif_dai = {
+	.probe			= sunxi_spdif_dai_probe,
+	.suspend		= sunxi_spdif_suspend,
+	.resume			= sunxi_spdif_resume,
+	.remove			= sunxi_spdif_dai_remove,
+	.playback		= {
+		.channels_min	= 1,
+		.channels_max	= 4,
+		.rates		= SUNXI_SPDIF_RATES,
+		.formats	= SNDRV_PCM_FMTBIT_S16_LE,
+		},
+	.capture = {
+		.channels_min	= 1,
+		.channels_max	= 4,
+		.rates		= SUNXI_SPDIF_RATES,
+		.formats	= SNDRV_PCM_FMTBIT_S16_LE,
+		},
+	.ops			= &sunxi_spdif_dai_ops,
+};
+
+static struct pinctrl *spdif_pinctrl;
+
 static int __devinit sunxi_spdif_dev_probe(struct platform_device *pdev)
 {
 	int reg_val = 0;
@@ -765,8 +787,10 @@ static int __devinit sunxi_spdif_dev_probe(struct platform_device *pdev)
 	reg_val |= SUNXI_SPDIF_CTL_GEN;
 	writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_CTL);
 
-	ret = snd_soc_register_dai(&pdev->dev, &sunxi_spdif_dai);
-
+	if (sunxi_is_sun6i())
+		ret = snd_soc_register_dai(&pdev->dev, &sun6i_spdif_dai);
+	else
+		ret = snd_soc_register_dai(&pdev->dev, &sunxi_spdif_dai);
 	return 0;
 }
 

@@ -23,6 +23,7 @@
 
 #include <linux/io.h>
 #include <plat/sys_config.h>
+#include <mach/system.h>
 
 #define SNDSPDIF_RATES (SNDRV_PCM_RATE_8000_192000 | SNDRV_PCM_RATE_KNOT)
 #define SNDSPDIF_FORMATS (SNDRV_PCM_FMTBIT_S16_LE)
@@ -83,6 +84,7 @@ struct snd_soc_dai_ops sndspdif_dai_ops = {
 	.set_clkdiv = sndspdif_set_dai_clkdiv,
 	.set_fmt = sndspdif_set_dai_fmt,
 };
+
 struct snd_soc_dai_driver sndspdif_dai = {
 	.name = "sndspdif",
 	/* playback capabilities */
@@ -97,7 +99,27 @@ struct snd_soc_dai_driver sndspdif_dai = {
 	.ops = &sndspdif_dai_ops,
 	.symmetric_rates = 1,
 };
-EXPORT_SYMBOL(sndspdif_dai);
+
+struct snd_soc_dai_driver sun6i_sndspdif_dai = {
+	.name = "sndspdif",
+	/* playback capabilities */
+	.playback = {
+		.stream_name = "Playback",
+		.channels_min = 1,
+		.channels_max = 4,
+		.rates = SNDSPDIF_RATES,
+		.formats = SNDSPDIF_FORMATS,
+	},
+	.capture = {
+		.stream_name = "Capture",
+		.channels_min = 1,
+		.channels_max = 4,
+		.rates = SNDSPDIF_RATES,
+		.formats = SNDSPDIF_FORMATS,
+	},
+	/* pcm operations */
+	.ops = &sndspdif_dai_ops,
+};
 
 static int sndspdif_soc_probe(struct snd_soc_codec *codec)
 {
@@ -130,8 +152,16 @@ static struct snd_soc_codec_driver soc_codec_dev_sndspdif = {
 
 static int __devinit sndspdif_codec_probe(struct platform_device *pdev)
 {
-	return snd_soc_register_codec(&pdev->dev, &soc_codec_dev_sndspdif,
+	int ret;
+
+	if (sunxi_is_sun6i())
+		ret = snd_soc_register_codec(&pdev->dev, &soc_codec_dev_sndspdif,
+							&sun6i_sndspdif_dai, 1);
+	else
+		ret = snd_soc_register_codec(&pdev->dev, &soc_codec_dev_sndspdif,
 							&sndspdif_dai, 1);
+
+	return ret;
 }
 
 static int __devexit sndspdif_codec_remove(struct platform_device *pdev)
