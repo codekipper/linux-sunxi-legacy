@@ -489,11 +489,18 @@ static int sunxi_spdif_suspend(struct snd_soc_dai *cpu_dai)
 	writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_CTL);
 
 	spdifregsave();
+	if ((NULL == spdif_moduleclk) || (IS_ERR(spdif_moduleclk))) {
+		printk("spdif_moduleclk handle is invalid, just return\n");
+		return -EFAULT;
+	} else
+		/* disable the module clock */
+		clk_disable(spdif_moduleclk);
 
-	/* disable the module clock */
-	clk_disable(spdif_moduleclk);
-
-	clk_disable(spdif_apbclk);
+	if ((NULL == spdif_apbclk) || (IS_ERR(spdif_apbclk))) {
+		printk("spdif_apbclk handle is invalid, just return\n");
+		return -EFAULT;
+	} else
+		clk_disable(spdif_apbclk);
 
 	printk("[SPDIF]SPECIAL CLK 0x01c20068 = %#x, line= %d\n",
 					*(volatile int *)0xF1C20068, __LINE__);
@@ -508,11 +515,15 @@ static int sunxi_spdif_resume(struct snd_soc_dai *cpu_dai)
 	u32 reg_val;
 	printk("[SPDIF]Enter %s\n", __func__);
 
-	/* disable the module clock */
-	clk_enable(spdif_apbclk);
+	/* enable the module clock */
+	if (clk_enable(spdif_apbclk)) {
+		printk("try to enable spdif_apbclk output failed!\n");
+	}
 
 	/* enable the module clock */
-	clk_enable(spdif_moduleclk);
+	if (clk_enable(spdif_moduleclk)) {
+		printk("try to enable spdif_moduleclk output failed!\n");
+	}
 
 	spdifregrestore();
 
