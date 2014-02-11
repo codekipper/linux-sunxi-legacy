@@ -31,6 +31,7 @@
 #include <plat/sys_config.h>
 
 #include <mach/hardware.h>
+#include <mach/system.h>
 #include <asm/dma.h>
 #include <plat/dma_compat.h>
 
@@ -281,9 +282,21 @@ static int sunxi_spdif_set_clkdiv(struct snd_soc_dai *cpu_dai, int div_id,
 	reg_val &= ~(SUNXI_SPDIF_TXCHSTA0_SAMFREQ(0xf));
 	writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA0);
 
+	if (sunxi_is_sun6i()) {
+		reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA0);
+		reg_val &= ~(SUNXI_SPDIF_TXCHSTA0_SAMFREQ(0xf));
+		writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA0);
+	}
+
 	reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA1);
 	reg_val &= ~(SUNXI_SPDIF_TXCHSTA1_ORISAMFREQ(0xf));
 	writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA1);
+
+	if (sunxi_is_sun6i()) {
+		reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA1);
+		reg_val &= ~(SUNXI_SPDIF_TXCHSTA1_ORISAMFREQ(0xf));
+		writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA1);
+	}
 
 	switch (div_id) {
 	case SUNXI_DIV_MCLK: {
@@ -308,6 +321,16 @@ static int sunxi_spdif_set_clkdiv(struct snd_soc_dai *cpu_dai, int div_id,
 					(SUNXI_SPDIF_TXCHSTA1_ORISAMFREQ(0x9));
 				writel(reg_val, sunxi_spdif.regs +
 							SUNXI_SPDIF_TXCHSTA1);
+
+				if (sunxi_is_sun6i()) {
+					reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA0);
+					reg_val |= (SUNXI_SPDIF_RXCHSTA0_SAMFREQ(0x6));
+					writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA0);
+
+					reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA1);
+					reg_val |= (SUNXI_SPDIF_RXCHSTA1_ORISAMFREQ(0x9));
+					writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA1);
+				}
 				break;
 
 			/* 32KHZ */
@@ -324,6 +347,16 @@ static int sunxi_spdif_set_clkdiv(struct snd_soc_dai *cpu_dai, int div_id,
 					(SUNXI_SPDIF_TXCHSTA1_ORISAMFREQ(0xC));
 				writel(reg_val, sunxi_spdif.regs +
 							SUNXI_SPDIF_TXCHSTA1);
+
+				if (sunxi_is_sun6i()) {
+					reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA0);
+					reg_val |= (SUNXI_SPDIF_RXCHSTA0_SAMFREQ(0x3));
+					writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA0);
+
+					reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA1);
+					reg_val |= (SUNXI_SPDIF_RXCHSTA1_ORISAMFREQ(0xC));
+					writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA1);
+				}
 				break;
 
 			/* 48KHZ */
@@ -340,6 +373,16 @@ static int sunxi_spdif_set_clkdiv(struct snd_soc_dai *cpu_dai, int div_id,
 					(SUNXI_SPDIF_TXCHSTA1_ORISAMFREQ(0xD));
 				writel(reg_val, sunxi_spdif.regs +
 							SUNXI_SPDIF_TXCHSTA1);
+
+				if (sunxi_is_sun6i()) {
+					reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA0);
+					reg_val |= (SUNXI_SPDIF_RXCHSTA0_SAMFREQ(0x2));
+					writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA0);
+
+					reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA1);
+					reg_val |= (SUNXI_SPDIF_RXCHSTA1_ORISAMFREQ(0xD));
+					writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA1);
+				}
 				break;
 
 			/* 96KHZ */
@@ -356,6 +399,16 @@ static int sunxi_spdif_set_clkdiv(struct snd_soc_dai *cpu_dai, int div_id,
 					(SUNXI_SPDIF_TXCHSTA1_ORISAMFREQ(0x5));
 				writel(reg_val, sunxi_spdif.regs +
 							SUNXI_SPDIF_TXCHSTA1);
+
+				if (sunxi_is_sun6i()) {
+					reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA0);
+					reg_val |= (SUNXI_SPDIF_RXCHSTA0_SAMFREQ(0xA));
+					writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA0);
+
+					reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA1);
+					reg_val |= (SUNXI_SPDIF_RXCHSTA1_ORISAMFREQ(0x5));
+					writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA1);
+				}
 				break;
 
 			/* 192KHZ */
@@ -372,6 +425,16 @@ static int sunxi_spdif_set_clkdiv(struct snd_soc_dai *cpu_dai, int div_id,
 					(SUNXI_SPDIF_TXCHSTA1_ORISAMFREQ(0x1));
 				writel(reg_val, sunxi_spdif.regs +
 							SUNXI_SPDIF_TXCHSTA1);
+
+				if (sunxi_is_sun6i()) {
+					reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA0);
+					reg_val |= (SUNXI_SPDIF_RXCHSTA0_SAMFREQ(0xE));
+					writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA0);
+
+					reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA1);
+					reg_val |= (SUNXI_SPDIF_RXCHSTA1_ORISAMFREQ(0x1));
+					writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA1);
+				}
 				break;
 
 			default:
@@ -386,6 +449,16 @@ static int sunxi_spdif_set_clkdiv(struct snd_soc_dai *cpu_dai, int div_id,
 				reg_val |= (SUNXI_SPDIF_TXCHSTA1_ORISAMFREQ(0));
 				writel(reg_val, sunxi_spdif.regs +
 							SUNXI_SPDIF_TXCHSTA1);
+
+				if (sunxi_is_sun6i()) {
+					reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA0);
+					reg_val |= (SUNXI_SPDIF_RXCHSTA0_SAMFREQ(1));
+					writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA0);
+
+					reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA1);
+					reg_val |= (SUNXI_SPDIF_RXCHSTA1_ORISAMFREQ(0));
+					writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA1);
+				}
 				break;
 			}
 		} else {
@@ -405,6 +478,16 @@ static int sunxi_spdif_set_clkdiv(struct snd_soc_dai *cpu_dai, int div_id,
 					(SUNXI_SPDIF_TXCHSTA1_ORISAMFREQ(0xb));
 				writel(reg_val, sunxi_spdif.regs +
 							SUNXI_SPDIF_TXCHSTA1);
+
+				if (sunxi_is_sun6i()) {
+					reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA0);
+					reg_val |= (SUNXI_SPDIF_RXCHSTA0_SAMFREQ(0x4));
+					writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA0);
+
+					reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA1);
+					reg_val |= (SUNXI_SPDIF_RXCHSTA1_ORISAMFREQ(0xb));
+					writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA1);
+				}
 				break;
 
 			/* 44.1KHZ */
@@ -421,6 +504,16 @@ static int sunxi_spdif_set_clkdiv(struct snd_soc_dai *cpu_dai, int div_id,
 					(SUNXI_SPDIF_TXCHSTA1_ORISAMFREQ(0xF));
 				writel(reg_val, sunxi_spdif.regs +
 							SUNXI_SPDIF_TXCHSTA1);
+
+				if (sunxi_is_sun6i()) {
+					reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA0);
+					reg_val |= (SUNXI_SPDIF_RXCHSTA0_SAMFREQ(0x0));
+					writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA0);
+
+					reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA1);
+					reg_val |= (SUNXI_SPDIF_RXCHSTA1_ORISAMFREQ(0xF));
+					writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA1);
+				}
 				break;
 
 			/* 88.2KHZ */
@@ -437,6 +530,16 @@ static int sunxi_spdif_set_clkdiv(struct snd_soc_dai *cpu_dai, int div_id,
 					(SUNXI_SPDIF_TXCHSTA1_ORISAMFREQ(0x7));
 				writel(reg_val, sunxi_spdif.regs +
 							SUNXI_SPDIF_TXCHSTA1);
+
+				if (sunxi_is_sun6i()) {
+					reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA0);
+					reg_val |= (SUNXI_SPDIF_RXCHSTA0_SAMFREQ(0x8));
+					writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA0);
+
+					reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA1);
+					reg_val |= (SUNXI_SPDIF_RXCHSTA1_ORISAMFREQ(0x7));
+					writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA1);
+				}
 				break;
 
 			/* 176.4KHZ */
@@ -453,6 +556,16 @@ static int sunxi_spdif_set_clkdiv(struct snd_soc_dai *cpu_dai, int div_id,
 					(SUNXI_SPDIF_TXCHSTA1_ORISAMFREQ(0x3));
 				writel(reg_val, sunxi_spdif.regs +
 							SUNXI_SPDIF_TXCHSTA1);
+
+				if (sunxi_is_sun6i()) {
+					reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA0);
+					reg_val |= (SUNXI_SPDIF_RXCHSTA0_SAMFREQ(0xC));
+					writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA0);
+
+					reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA1);
+					reg_val |= (SUNXI_SPDIF_RXCHSTA1_ORISAMFREQ(0x3));
+					writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA1);
+				}
 				break;
 
 			default:
@@ -467,6 +580,16 @@ static int sunxi_spdif_set_clkdiv(struct snd_soc_dai *cpu_dai, int div_id,
 				reg_val |= (SUNXI_SPDIF_TXCHSTA1_ORISAMFREQ(0));
 				writel(reg_val, sunxi_spdif.regs +
 							SUNXI_SPDIF_TXCHSTA1);
+
+				if (sunxi_is_sun6i()) {
+					reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA0);
+					reg_val |= (SUNXI_SPDIF_RXCHSTA0_SAMFREQ(1));
+					writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA0);
+
+					reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA1);
+					reg_val |= (SUNXI_SPDIF_RXCHSTA1_ORISAMFREQ(0));
+					writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_RXCHSTA1);
+				}
 				break;
 			}
 		}
