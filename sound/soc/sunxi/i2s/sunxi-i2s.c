@@ -37,8 +37,17 @@
 
 #include "sunxi-i2s.h"
 
+struct sunxi_i2s_info sunxi_iis;
+
 static int regsave[8];
 static int i2s_used;
+static u32 i2s_handle;
+
+static struct clk *i2s_apbclk;
+static struct clk *i2s_pll2clk;
+static struct clk *i2s_pllx8;
+static struct clk *i2s_moduleclk;
+
 
 static struct sunxi_dma_params sunxi_i2s_pcm_stereo_out = {
 	.client.name	=	"I2S PCM Stereo out",
@@ -55,11 +64,6 @@ static struct sunxi_dma_params sunxi_i2s_pcm_stereo_in = {
 #endif
 	.dma_addr	=	SUNXI_IISBASE + SUNXI_IISRXFIFO,
 };
-
-
-struct sunxi_i2s_info sunxi_iis;
-static u32 i2s_handle;
-static struct clk *i2s_apbclk, *i2s_pll2clk, *i2s_pllx8, *i2s_moduleclk;
 
 void sunxi_snd_txctrl_i2s(struct snd_pcm_substream *substream, int on)
 {

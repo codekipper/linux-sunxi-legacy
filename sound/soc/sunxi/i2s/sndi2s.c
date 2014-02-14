@@ -21,8 +21,8 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 #include <sound/initval.h>
-#include <plat/sys_config.h>
 #include <linux/io.h>
+#include <plat/sys_config.h>
 
 struct sndi2s_priv {
 	int sysclk;

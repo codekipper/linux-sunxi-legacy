@@ -163,23 +163,14 @@
 	#define SUNXI_RXCHMAP_CH1(v)			(((v)-1) << 4)
 	#define SUNXI_RXCHMAP_CH0(v)			(((v)-1) << 0)
 
-/*------------------------------------------------------------*/
-/* Clock dividers */
-#define SUNXI_DIV_MCLK			0
-#define SUNXI_DIV_BCLK			1
-
 #define SUNXI_IISCLKD_MCLK_MASK		0x0f
 #define SUNXI_IISCLKD_MCLK_OFFS		0
 #define SUNXI_IISCLKD_BCLK_MASK		0x070
 #define SUNXI_IISCLKD_BCLK_OFFS		4
 #define SUNXI_IISCLKD_MCLKEN_OFFS	7
 
-unsigned int sunxi_i2s_get_clockrate(void);
-extern struct sunxi_i2s_info sunxi_i2s;
-/* extern struct snd_soc_dai sunxi_iis_dai; */
-
-extern void sunxi_snd_txctrl_i2s(struct snd_pcm_substream *substream, int on);
-extern void sunxi_snd_rxctrl_i2s(int on);
+#define SUNXI_DIV_MCLK			(0)
+#define SUNXI_DIV_BCLK			(1)
 
 /*
  * struct sunxi_i2s_info {
