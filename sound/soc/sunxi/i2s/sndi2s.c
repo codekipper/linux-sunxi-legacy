@@ -98,6 +98,13 @@ struct snd_soc_dai_driver sndi2s_dai = {
 		.rates		= SNDI2S_RATES,
 		.formats	= SNDI2S_FORMATS,
 	},
+	.capture		= {
+		.stream_name	= "Capture",
+		.channels_min	= 1,
+		.channels_max	= 2,
+		.rates		= SNDI2S_RATES,
+		.formats	= SNDI2S_FORMATS,
+	},
 	/* pcm operations */
 	.ops			= &sndi2s_dai_ops,
 	.symmetric_rates	= 1,
