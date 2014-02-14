@@ -119,7 +119,7 @@ static int sndi2s_soc_probe(struct snd_soc_codec *codec)
 /* power down chip */
 static int sndi2s_soc_remove(struct snd_soc_codec *codec)
 {
-	struct sndhdmi_priv *sndi2s = snd_soc_codec_get_drvdata(codec);
+	struct sndi2s_priv *sndi2s = snd_soc_codec_get_drvdata(codec);
 
 	kfree(sndi2s);
 
