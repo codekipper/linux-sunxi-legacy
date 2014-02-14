@@ -245,6 +245,7 @@ static int sunxi_i2s_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 		reg_val &= ~SUNXI_IISCTL_MS;
 		break;
 	default:
+		printk("unknown master/slave format\n");
 		return -EINVAL;
 	}
 	writel(reg_val, sunxi_iis.regs + SUNXI_IISCTL);
