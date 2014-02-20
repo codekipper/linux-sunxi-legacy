@@ -34,8 +34,12 @@ struct sndi2s_priv {
 
 static int i2s_used;
 #define SNDI2S_RATES	(SNDRV_PCM_RATE_8000_192000 | SNDRV_PCM_RATE_KNOT)
+#if defined CONFIG_ARCH_SUN7I
+#define SNDI2S_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE)
+#else
 #define SNDI2S_FORMATS	(SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_S16_LE | \
 			SNDRV_PCM_FMTBIT_S18_3LE | SNDRV_PCM_FMTBIT_S20_3LE)
+#endif
 
 static int sndi2s_mute(struct snd_soc_dai *dai, int mute)
 {
@@ -58,6 +62,20 @@ static int sndi2s_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params,
 	struct snd_soc_dai *dai)
 {
+	switch (params_format(params)) {
+	case SNDRV_PCM_FORMAT_S16_LE:
+		printk("[IIS-0] sndi2s_hw_params: format 16 bit\n");
+		break;
+	case SNDRV_PCM_FORMAT_S20_3LE:
+		printk("[IIS-0] sndi2s_hw_params: format 20 bit in 3 bytes\n");
+		break;
+	case SNDRV_PCM_FORMAT_S24_LE:
+		printk("[IIS-0] sndi2s_hw_params: format 24 bit in 4 bytes\n");
+		break;
+	default:
+		printk("[IIS-0] sndi2s_hw_params: Unsupported format (%d)\n",
+						(int)params_format(params));
+	}
 	return 0;
 }
 
@@ -75,6 +93,7 @@ static int sndi2s_set_dai_clkdiv(struct snd_soc_dai *codec_dai, int div_id,
 
 static int sndi2s_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 {
+	printk("[IIS-0] sndi2s_set_dai_fmt: format (%u)\n", fmt);
 	return 0;
 }
 

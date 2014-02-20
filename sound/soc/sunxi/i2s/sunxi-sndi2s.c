@@ -26,9 +26,8 @@
 
 #include "sunxi-i2s.h"
 
-static struct clk *xtal;
-static int clk_users;
-static DEFINE_MUTEX(clk_lock);
+/* slave mode flag*/
+static int sunxi_i2s_slave;
 
 #ifdef ENFORCE_RATES
 static struct snd_pcm_hw_constraint_list hw_constraints_rates = {
@@ -59,14 +58,6 @@ static int sunxi_sndi2s_startup(struct snd_pcm_substream *substream)
 
 static void sunxi_sndi2s_shutdown(struct snd_pcm_substream *substream)
 {
-	mutex_lock(&clk_lock);
-	clk_users -= 1;
-	if (clk_users == 0) {
-		clk_put(xtal);
-		xtal = NULL;
-
-	}
-	mutex_unlock(&clk_lock);
 }
 
 typedef struct __MCLK_SET_INF {
@@ -157,8 +148,47 @@ static __mclk_set_inf MCLK_INF[] = {
 	{0xffffffff, 0, 0, 0},
 };
 
-static s32 get_clock_divder(u32 sample_rate, u32 sample_width, u32 *mclk_div,
-					u32 *mpll, u32 *bclk_div, u32 *mult_fs)
+static s32 get_clock_divder_slave(u32 sample_rate, u32 sample_width,
+					u32 *bclk_div, u32 *mpll, u32 *mult_fs)
+{
+	u32 ret = -EINVAL;
+	switch (sample_rate) {
+	case 44100:
+		*mpll = 1;
+		*bclk_div = 512;
+		ret = 0;
+		break;
+	case 48000:
+		*mpll = 0;
+		*bclk_div = 512;
+		ret = 0;
+		break;
+	case 88200:
+		*mpll = 1;
+		*bclk_div = 256;
+		ret = 0;
+		break;
+	case 96000:
+		*mpll = 0;
+		*bclk_div = 256;
+		ret = 0;
+		break;
+	case 176400:
+		*mpll = 1;
+		*bclk_div = 128;
+		ret = 0;
+		break;
+	case 192000:
+		*mpll = 0;
+		*bclk_div = 128;
+		ret = 0;
+		break;
+	}
+	return ret;
+}
+
+static s32 get_clock_divder_master(u32 sample_rate, u32 sample_width,
+			u32 *mclk_div, u32 *mpll, u32 *bclk_div, u32 *mult_fs)
 {
 	u32 i, j, ret = -EINVAL;
 
@@ -195,15 +225,48 @@ static int sunxi_sndi2s_hw_params(struct snd_pcm_substream *substream,
 	unsigned long rate = params_rate(params);
 	u32 mclk_div = 0, mpll = 0, bclk_div = 0, mult_fs = 0;
 
-	get_clock_divder(rate, 32, &mclk_div, &mpll, &bclk_div, &mult_fs);
+	printk("[IIS-0] %s: codec_dai=(%s), cpu_dai=(%s)\n", __func__,
+						codec_dai->name, cpu_dai->name);
+	printk("[IIS-0] %s: channel num=(%d)\n", __func__,
+						params_channels(params));
+	printk("[IIS-0] %s: sample rate=(%lu)\n", __func__, rate);
+
+	switch (params_format(params)) {
+	case SNDRV_PCM_FORMAT_S16_LE:
+		printk("[IIS-0] %s: format 16 bit\n", __func__);
+		break;
+	case SNDRV_PCM_FORMAT_S20_3LE:
+		printk("[IIS-0] %s: format 20 bit in 3 bytes\n", __func__);
+		break;
+	case SNDRV_PCM_FORMAT_S24_LE:
+		printk("[IIS-0] %s: format 24 bit in 4 bytes\n", __func__);
+		break;
+	default:
+		printk("[IIS-0] %s: Unsupported format (%d)\n", __func__,
+						(int)params_format(params));
+	}
+
+	if (!sunxi_i2s_slave) {
+		get_clock_divder_master(rate, 32, &mclk_div, &mpll,
+							&bclk_div, &mult_fs);
+		printk("[IIS-0] get_clock_divder_master: rate=(%lu), "\
+			"mclk_div=(%d), mpll=(%d), bclk_div=(%d), "\
+			"mult_fs=(%d)\n",
+			rate, mclk_div, mpll, bclk_div, mult_fs);
+	} else {
+		get_clock_divder_slave(rate, 32, &bclk_div, &mpll, &mult_fs);
+		printk("[IIS-0] get_clock_divder_slave: rate=(%lu), "\
+			"bclk_div=(%d), mpll=(%d), mult_fs=(%d)\n",
+			rate, bclk_div, mpll, mult_fs);
+	}
 
 	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
-			SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
+			SND_SOC_DAIFMT_NB_NF/* | SND_SOC_DAIFMT_CBS_CFS*/);
 	if (ret < 0)
 		return ret;
 
 	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
-			SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
+			SND_SOC_DAIFMT_NB_NF/* | SND_SOC_DAIFMT_CBS_CFS*/);
 	if (ret < 0)
 		return ret;
 
@@ -215,13 +278,19 @@ static int sunxi_sndi2s_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		return ret;
 
-	ret = snd_soc_dai_set_clkdiv(cpu_dai, SUNXI_DIV_MCLK, mclk_div);
-	if (ret < 0)
-		return ret;
+	if (!sunxi_i2s_slave) {
+		ret = snd_soc_dai_set_clkdiv(cpu_dai, SUNXI_DIV_MCLK, mclk_div);
+		if (ret < 0)
+			return ret;
 
-	ret = snd_soc_dai_set_clkdiv(cpu_dai, SUNXI_DIV_BCLK, bclk_div);
-	if (ret < 0)
-		return ret;
+		ret = snd_soc_dai_set_clkdiv(cpu_dai, SUNXI_DIV_BCLK, bclk_div);
+		if (ret < 0)
+			return ret;
+	} else {
+		ret = snd_soc_dai_set_clkdiv(cpu_dai, SUNXI_DIV_EXTCLK, bclk_div);
+		if (ret < 0)
+			return ret;
+	}
 
 	ret = snd_soc_dai_set_clkdiv(codec_dai, 0, mult_fs);
 	if (ret < 0)
@@ -280,11 +349,21 @@ static struct platform_driver sunxi_sndi2s_driver = {
 
 static int __init sunxi_sndi2s_init(void)
 {
-	int ret, i2s_used = 0;
+	int ret, i2s_used = 0, i2s_slave = 0;
+	printk("[IIS]Entered %s\n", __func__);
 
 	ret = script_parser_fetch("i2s_para", "i2s_used", &i2s_used, 1);
 	if (ret != 0 || !i2s_used)
 		return -ENODEV;
+
+	script_parser_fetch("i2s_para", "i2s_slave", &i2s_slave, sizeof(int));
+	if (i2s_slave) {
+		sunxi_i2s_slave = 1;
+		printk("[I2S-0] %s I2S used in slave mode\n", __func__);
+	} else {
+		sunxi_i2s_slave = 0;
+		printk("[I2S-0] %s I2S used in master mode\n", __func__);
+	}
 
 	ret = platform_device_register(&sunxi_sndi2s_device);
 	if (ret < 0)

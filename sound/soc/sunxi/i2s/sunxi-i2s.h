@@ -172,6 +172,7 @@
 
 #define SUNXI_DIV_MCLK			(0)
 #define SUNXI_DIV_BCLK			(1)
+#define SUNXI_DIV_EXTCLK		(2)
 
 /*
  * struct sunxi_i2s_info {
