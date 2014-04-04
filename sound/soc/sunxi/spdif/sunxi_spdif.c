@@ -125,11 +125,6 @@ void sunxi_snd_rxctrl(int on)
 {
 }
 
-static inline int sunxi_snd_is_clkmaster(void)
-{
-	return 0;
-}
-
 static int sunxi_spdif_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 {
 	u32 reg_val;
@@ -401,12 +396,6 @@ static int sunxi_spdif_set_clkdiv(struct snd_soc_dai *cpu_dai, int div_id, int d
 
 	return 0;
 }
-
-u32 sunxi_spdif_get_clockrate(void)
-{
-	return 0;
-}
-EXPORT_SYMBOL_GPL(sunxi_spdif_get_clockrate);
 
 static int sunxi_spdif_dai_probe(struct snd_soc_dai *dai)
 {

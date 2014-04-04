@@ -134,9 +134,4 @@ struct sunxi_spdif_info {
 
 extern struct sunxi_spdif_info sunxi_spdif;
 
-unsigned int sunxi_spdif_get_clockrate(void);
-
-extern void sunxi_snd_txctrl(struct snd_pcm_substream *substream, int on);
-extern void sunxi_snd_rxctrl(int on);
-
 #endif
