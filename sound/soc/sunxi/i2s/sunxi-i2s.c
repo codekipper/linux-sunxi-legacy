@@ -213,14 +213,6 @@ void sunxi_snd_rxctrl_i2s(int on)
 	}
 }
 
-static inline int sunxi_snd_is_clkmaster(void)
-{
-	if (readl(sunxi_iis.regs + SUNXI_IISCTL) & SUNXI_IISCTL_MS)
-		return 0;
-	else
-		return 1;
-}
-
 static int sunxi_i2s_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 {
 	u32 reg_val;
