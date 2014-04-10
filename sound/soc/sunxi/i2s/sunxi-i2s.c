@@ -70,7 +70,7 @@ void sunxi_snd_txctrl_i2s(struct snd_pcm_substream *substream, int on)
 	u32 reg_val;
 
 	reg_val = readl(sunxi_iis.regs + SUNXI_TXCHSEL);
-	reg_val &= ~0x7;
+	reg_val &= ~SUNXI_TXCHSEL_MASK;
 	reg_val |= SUNXI_TXCHSEL_CHNUM(substream->runtime->channels);
 	writel(reg_val, sunxi_iis.regs + SUNXI_TXCHSEL);
 
@@ -333,8 +333,8 @@ static int sunxi_i2s_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 	writel(reg_val, sunxi_iis.regs + SUNXI_IISFAT1);
 
 	/* set FIFO control register */
-	reg_val = 0 & 0x3;
-	reg_val |= (1 & 0x1) << 2;
+	reg_val = SUNXI_IISFCTL_RXOM_MOD0;
+	reg_val |= SUNXI_IISFCTL_TXIM_MOD1;
 	reg_val |= SUNXI_IISFCTL_RXTL(0xf);	/* RX FIFO trigger level */
 	reg_val |= SUNXI_IISFCTL_TXTL(0x40);	/* TX FIFO trigger level */
 	writel(reg_val, sunxi_iis.regs + SUNXI_IISFCTL);
@@ -412,17 +412,17 @@ static int sunxi_i2s_set_clkdiv(struct snd_soc_dai *cpu_dai, int div_id,
 		if (div <= 8)
 			div = (div >> 1);
 		else if (div == 12)
-			div = 0x5;
+			div = SUNXI_IISCLKD_MCLKDIV_12;
 		else if (div == 16)
-			div = 0x6;
+			div = SUNXI_IISCLKD_MCLKDIV_16;
 		else if (div == 24)
-			div = 0x7;
+			div = SUNXI_IISCLKD_MCLKDIV_24;
 		else if (div == 32)
-			div = 0x8;
+			div = SUNXI_IISCLKD_MCLKDIV_32;
 		else if (div == 48)
-			div = 0x9;
+			div = SUNXI_IISCLKD_MCLKDIV_48;
 		else if (div == 64)
-			div = 0xa;
+			div = SUNXI_IISCLKD_MCLKDIV_16;
 		reg = (readl(sunxi_iis.regs + SUNXI_IISCLKD) &
 				~SUNXI_IISCLKD_MCLK_MASK) |
 				(div << SUNXI_IISCLKD_MCLK_OFFS);
@@ -432,13 +432,13 @@ static int sunxi_i2s_set_clkdiv(struct snd_soc_dai *cpu_dai, int div_id,
 		if (div <= 8)
 			div = (div >> 1) - 1;
 		else if (div == 12)
-			div = 0x4;
+			div = SUNXI_IISCLKD_BCLKDIV_12;
 		else if (div == 16)
-			div = 0x5;
+			div = SUNXI_IISCLKD_BCLKDIV_16;
 		else if (div == 32)
-			div = 0x6;
+			div = SUNXI_IISCLKD_BCLKDIV_32;
 		else if (div == 64)
-			div = 0x7;
+			div = SUNXI_IISCLKD_BCLKDIV_64;
 		reg = (readl(sunxi_iis.regs + SUNXI_IISCLKD) &
 				~SUNXI_IISCLKD_BCLK_MASK) |
 				(div << SUNXI_IISCLKD_BCLK_OFFS);
@@ -476,7 +476,8 @@ static void iisregsave(void)
 	regsave[0] = readl(sunxi_iis.regs + SUNXI_IISCTL);
 	regsave[1] = readl(sunxi_iis.regs + SUNXI_IISFAT0);
 	regsave[2] = readl(sunxi_iis.regs + SUNXI_IISFAT1);
-	regsave[3] = readl(sunxi_iis.regs + SUNXI_IISFCTL) | (0x3 << 24);
+	regsave[3] = readl(sunxi_iis.regs + SUNXI_IISFCTL) |
+			(SUNXI_IISFCTL_FTX | SUNXI_IISFCTL_FRX);
 	regsave[4] = readl(sunxi_iis.regs + SUNXI_IISINT);
 	regsave[5] = readl(sunxi_iis.regs + SUNXI_IISCLKD);
 	regsave[6] = readl(sunxi_iis.regs + SUNXI_TXCHSEL);

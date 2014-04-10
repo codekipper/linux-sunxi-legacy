@@ -133,7 +133,7 @@
 	#define SUNXI_IISCLKD_MCLKDIV_12		(5 << 0)
 	#define SUNXI_IISCLKD_MCLKDIV_16		(6 << 0)
 	#define SUNXI_IISCLKD_MCLKDIV_24		(7 << 0)
-	#define SUNXI_IISCLKD_MCLKDIV_3			(8 << 0)
+	#define SUNXI_IISCLKD_MCLKDIV_32		(8 << 0)
 	#define SUNXI_IISCLKD_MCLKDIV_48		(9 << 0)
 	#define SUNXI_IISCLKD_MCLKDIV_64		(10 << 0)
 
@@ -142,6 +142,7 @@
 #define SUNXI_IISRXCNT		(0x2C)
 
 #define SUNXI_TXCHSEL		(0x30)
+	#define SUNXI_TXCHSEL_MASK                      (7 << 0)
 	#define SUNXI_TXCHSEL_CHNUM(v)			(((v)-1) << 0)
 
 #define SUNXI_TXCHMAP		(0x34)
