@@ -394,7 +394,7 @@ static int sunxi_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 
 /* freq: 1: 22.5792MHz 0: 24.576MHz */
 static int sunxi_i2s_set_sysclk(struct snd_soc_dai *cpu_dai, int clk_id,
-							int freq, int dir)
+						unsigned int freq, int dir)
 {
 	if (!freq)
 		clk_set_rate(i2s_pll2clk, 24576000);
