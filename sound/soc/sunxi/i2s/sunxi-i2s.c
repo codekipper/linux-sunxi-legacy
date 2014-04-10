@@ -603,7 +603,7 @@ static int __devinit sunxi_i2s_dev_probe(struct platform_device *pdev)
 	i2s_pll2clk = clk_get(NULL, "audio_pll");
 
 	/* i2s module clk */
-	i2s_moduleclk = clk_get(NULL, "i2s");
+	i2s_moduleclk = clk_get(NULL, "i2s0");
 
 	if (clk_set_parent(i2s_moduleclk, i2s_pll2clk)) {
 		printk("try to set parent of i2s_moduleclk to i2s_pll2ck "\

@@ -81,7 +81,7 @@ enum {
 	AW_MOD_CLK_PATA,        /* "pata"           */
 	AW_MOD_CLK_IR0,         /* "ir0"            */
 	AW_MOD_CLK_IR1,         /* "ir1"            */
-	AW_MOD_CLK_I2S,         /* "i2s"            */
+	AW_MOD_CLK_I2S0,        /* "i2s0"           */
 	AW_MOD_CLK_AC97,        /* "ac97"           */
 	AW_MOD_CLK_SPDIF,       /* "spdif"          */
 	AW_MOD_CLK_KEYPAD,      /* "key_pad"        */

@@ -67,7 +67,7 @@ static char *_modClkName[AW_MOD_CLK_CNT] = {
 	"pata",
 	"ir0",
 	"ir1",
-	"i2s",
+	"i2s0",
 	"ac97",
 	"spdif",
 	"key_pad",

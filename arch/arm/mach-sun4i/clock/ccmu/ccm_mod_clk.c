@@ -49,7 +49,7 @@ static __aw_ccu_clk_t aw_ccu_mod_clk[] =
     make_mod_clk_inf(AW_MOD_CLK_PATA        , "pata"        ),
     make_mod_clk_inf(AW_MOD_CLK_IR0         , "ir0"         ),
     make_mod_clk_inf(AW_MOD_CLK_IR1         , "ir1"         ),
-    make_mod_clk_inf(AW_MOD_CLK_I2S         , "i2s"         ),
+    make_mod_clk_inf(AW_MOD_CLK_I2S0        , "i2s0"        ),
     make_mod_clk_inf(AW_MOD_CLK_AC97        , "ac97"        ),
     make_mod_clk_inf(AW_MOD_CLK_SPDIF       , "spdif"       ),
     make_mod_clk_inf(AW_MOD_CLK_KEYPAD      , "key_pad"     ),
@@ -367,7 +367,7 @@ static __aw_ccu_sys_clk_e mod_clk_get_parent(__aw_ccu_mod_clk_e id)
             return _parse_module0_clk_src(&aw_ccu_reg->Ir0Clk);
         case AW_MOD_CLK_IR1:
             return _parse_module0_clk_src(&aw_ccu_reg->Ir1Clk);
-        case AW_MOD_CLK_I2S:
+        case AW_MOD_CLK_I2S0:
             return AW_SYS_CLK_PLL2;
         case AW_MOD_CLK_AC97:
             return AW_SYS_CLK_PLL2;
@@ -656,7 +656,7 @@ static __aw_ccu_clk_onff_e mod_clk_get_status(__aw_ccu_mod_clk_e id)
             return _get_module0_clk_status(&aw_ccu_reg->Ir0Clk);
         case AW_MOD_CLK_IR1:
             return _get_module0_clk_status(&aw_ccu_reg->Ir1Clk);
-        case AW_MOD_CLK_I2S:
+        case AW_MOD_CLK_I2S0:
             return aw_ccu_reg->I2sClk.SpecClkGate? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
         case AW_MOD_CLK_AC97:
             return aw_ccu_reg->Ac97Clk.SpecClkGate? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
@@ -953,7 +953,7 @@ static __s64 mod_clk_get_rate(__aw_ccu_mod_clk_e id)
             return _get_module0_clk_rate(&aw_ccu_reg->Ir0Clk);
         case AW_MOD_CLK_IR1:
             return _get_module0_clk_rate(&aw_ccu_reg->Ir1Clk);
-        case AW_MOD_CLK_I2S:
+        case AW_MOD_CLK_I2S0:
             return (1 << aw_ccu_reg->I2sClk.ClkDiv);
         case AW_MOD_CLK_AC97:
             return (1 << aw_ccu_reg->Ac97Clk.ClkDiv);
@@ -1054,7 +1054,7 @@ static __aw_ccu_clk_reset_e mod_clk_get_reset(__aw_ccu_mod_clk_e id)
         case AW_MOD_CLK_PATA:
         case AW_MOD_CLK_IR0:
         case AW_MOD_CLK_IR1:
-        case AW_MOD_CLK_I2S:
+        case AW_MOD_CLK_I2S0:
         case AW_MOD_CLK_AC97:
         case AW_MOD_CLK_SPDIF:
         case AW_MOD_CLK_KEYPAD:
@@ -1166,7 +1166,7 @@ static __s32 mod_clk_set_parent(__aw_ccu_mod_clk_e id, __aw_ccu_sys_clk_e parent
             return _set_module0_clk_src(&aw_ccu_reg->Ir0Clk, parent);
         case AW_MOD_CLK_IR1:
             return _set_module0_clk_src(&aw_ccu_reg->Ir1Clk, parent);
-        case AW_MOD_CLK_I2S:
+        case AW_MOD_CLK_I2S0:
             return (parent == AW_SYS_CLK_PLL2)? 0 : -1;
         case AW_MOD_CLK_AC97:
             return (parent == AW_SYS_CLK_PLL2)? 0 : -1;
@@ -1539,7 +1539,7 @@ static __s32 mod_clk_set_status(__aw_ccu_mod_clk_e id, __aw_ccu_clk_onff_e statu
             return _set_module0_clk_status(&aw_ccu_reg->Ir0Clk, status);
         case AW_MOD_CLK_IR1:
             return _set_module0_clk_status(&aw_ccu_reg->Ir1Clk, status);
-        case AW_MOD_CLK_I2S:
+        case AW_MOD_CLK_I2S0:
             aw_ccu_reg->I2sClk.SpecClkGate = (status == AW_CCU_CLK_OFF)? 0 : 1;
             return 0;
         case AW_MOD_CLK_AC97:
@@ -1962,7 +1962,7 @@ static __s32 mod_clk_set_rate(__aw_ccu_mod_clk_e id, __s64 rate)
             return _set_module0_clk_rate(&aw_ccu_reg->Ir0Clk, rate);
         case AW_MOD_CLK_IR1:
             return _set_module0_clk_rate(&aw_ccu_reg->Ir1Clk, rate);
-        case AW_MOD_CLK_I2S:
+        case AW_MOD_CLK_I2S0:
         {
             switch(rate)
             {
@@ -2272,7 +2272,7 @@ static __s32 mod_clk_set_reset(__aw_ccu_mod_clk_e id, __aw_ccu_clk_reset_e reset
         case AW_MOD_CLK_PATA:
         case AW_MOD_CLK_IR0:
         case AW_MOD_CLK_IR1:
-        case AW_MOD_CLK_I2S:
+        case AW_MOD_CLK_I2S0:
         case AW_MOD_CLK_AC97:
         case AW_MOD_CLK_SPDIF:
         case AW_MOD_CLK_KEYPAD:
