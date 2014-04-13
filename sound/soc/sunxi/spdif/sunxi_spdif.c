@@ -44,7 +44,7 @@ static struct clk *spdif_pll2clk;
 static struct clk *spdif_pllx8;
 static struct clk *spdif_moduleclk;
 
-static struct sunxi_dma_params sunxi_spdif_stereo_out = {
+static struct sunxi_dma_params sunxi_spdif_audio_out = {
 	.client.name	=	"SPDIF out",
 #if defined CONFIG_ARCH_SUN4I || defined CONFIG_ARCH_SUN5I
 	.channel	=	DMACH_NSPDIF,
@@ -52,7 +52,7 @@ static struct sunxi_dma_params sunxi_spdif_stereo_out = {
 	.dma_addr	=	SUNXI_SPDIFBASE + SUNXI_SPDIF_TXFIFO,
 };
 
-static struct sunxi_dma_params sunxi_spdif_stereo_in = {
+static struct sunxi_dma_params sunxi_spdif_audio_in = {
 	.client.name	=	"SPDIF in",
 #if defined CONFIG_ARCH_SUN4I || defined CONFIG_ARCH_SUN5I
 	.channel	=	DMACH_NSPDIF,
@@ -173,9 +173,9 @@ static int sunxi_spdif_hw_params(struct snd_pcm_substream *substream,
 
 	/* play or record */
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		dma_data = &sunxi_spdif_stereo_out;
+		dma_data = &sunxi_spdif_audio_out;
 	else
-		dma_data = &sunxi_spdif_stereo_in;
+		dma_data = &sunxi_spdif_audio_in;
 
 	snd_soc_dai_set_dma_data(rtd->cpu_dai, substream, dma_data);
 
