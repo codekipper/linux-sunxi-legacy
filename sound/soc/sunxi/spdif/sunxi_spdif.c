@@ -71,7 +71,7 @@ void sunxi_snd_txctrl(struct snd_pcm_substream *substream, int on)
 	}
 
 	/* soft reset SPDIF */
-	writel(0x1, sunxi_spdif.regs + SUNXI_SPDIF_CTL);
+	writel(SUNXI_SPDIF_CTL_RESET, sunxi_spdif.regs + SUNXI_SPDIF_CTL);
 
 	/* MCLK OUTPUT enable */
 	reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_CTL);
@@ -451,7 +451,8 @@ static void spdifregsave(void)
 {
 	regsave[0] = readl(sunxi_spdif.regs + SUNXI_SPDIF_CTL);
 	regsave[1] = readl(sunxi_spdif.regs + SUNXI_SPDIF_TXCFG);
-	regsave[2] = readl(sunxi_spdif.regs + SUNXI_SPDIF_FCTL) | (0x3 << 16);
+	regsave[2] = readl(sunxi_spdif.regs + SUNXI_SPDIF_FCTL) |
+			(SUNXI_SPDIF_FCTL_FTX | SUNXI_SPDIF_FCTL_FRX);
 	regsave[3] = readl(sunxi_spdif.regs + SUNXI_SPDIF_INT);
 	regsave[4] = readl(sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA0);
 	regsave[5] = readl(sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA1);
