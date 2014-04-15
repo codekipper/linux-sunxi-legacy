@@ -147,30 +147,19 @@ static int sunxi_spdif_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 	reg_val |= SUNXI_SPDIF_FCTL_RXOM(3);
 	writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_FCTL);
 
-	if (!fmt) {
-		/* PCM */
-		reg_val = 0;
-		reg_val |= (SUNXI_SPDIF_TXCHSTA0_CHNUM(2));
-		writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA0);
-
-		reg_val = 0;
-		reg_val |= (SUNXI_SPDIF_TXCHSTA1_SAMWORDLEN(1));
-		writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA1);
-	} else {
+	if (fmt) {
 		/* non PCM */
 		reg_val = readl(sunxi_spdif.regs + SUNXI_SPDIF_TXCFG);
 		reg_val |= SUNXI_SPDIF_TXCFG_NONAUDIO;
 		writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_TXCFG);
-
-		reg_val = 0;
-		reg_val |= (SUNXI_SPDIF_TXCHSTA0_CHNUM(2));
-		reg_val |= SUNXI_SPDIF_TXCHSTA0_AUDIO;
-		writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA0);
-
-		reg_val = 0;
-		reg_val |= (SUNXI_SPDIF_TXCHSTA1_SAMWORDLEN(1));
-		writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA1);
 	}
+	reg_val = 0;
+	reg_val |= (SUNXI_SPDIF_TXCHSTA0_CHNUM(2));
+	writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA0);
+
+	reg_val = 0;
+	reg_val |= (SUNXI_SPDIF_TXCHSTA1_SAMWORDLEN(1));
+	writel(reg_val, sunxi_spdif.regs + SUNXI_SPDIF_TXCHSTA1);
 
 	return 0;
 }
