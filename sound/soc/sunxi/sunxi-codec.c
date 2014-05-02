@@ -1500,9 +1500,6 @@ static int __init snd_card_sunxi_codec_pcm(struct sunxi_codec *sunxi_codec,
 		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE,
 				&sunxi_pcm_capture_ops);
 
-	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK,
-						&sunxi_pcm_playback_ops);
-	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &sunxi_pcm_capture_ops);
 	/* Set pcm-> private_data specific data for the chip */
 	pcm->private_data = sunxi_codec;
 	pcm->info_flags = 0;
