@@ -1465,7 +1465,7 @@ static struct snd_pcm_ops sunxi_pcm_capture_ops = {
 	.pointer		= snd_sunxi_codec_pointer,
 };
 
-static int __init snd_card_sunxi_codec_pcm(struct sunxi_codec *sunxi_codec,
+static int __devinit snd_card_sunxi_codec_pcm(struct sunxi_codec *sunxi_codec,
 								int device)
 {
 	struct snd_pcm *pcm;
@@ -1761,7 +1761,7 @@ static struct platform_device sunxi_device_codec = {
 
 static struct platform_driver sunxi_codec_driver = {
 	.probe		= sunxi_codec_probe,
-	.remove		= sunxi_codec_remove,
+	.remove		= __devexit_p(sunxi_codec_remove),
 	.shutdown	= sunxi_codec_shutdown,
 #ifdef CONFIG_PM
 	.suspend	= snd_sunxi_codec_suspend,
