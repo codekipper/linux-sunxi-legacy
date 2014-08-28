@@ -4,7 +4,7 @@
 
 # Object file lists.
 
-obj-$(CONFIG_USB_SERIAL)			+= usbserial.o
+obj-$(CONFIG_USB_SERIAL)			+= usbserial.o sw_dongle.o
 
 usbserial-y := usb-serial.o generic.o bus.o
 
@@ -60,3 +60,4 @@ obj-$(CONFIG_USB_SERIAL_WHITEHEAT)		+= whiteheat.o
 obj-$(CONFIG_USB_SERIAL_XIRCOM)			+= keyspan_pda.o
 obj-$(CONFIG_USB_SERIAL_VIVOPAY_SERIAL)		+= vivopay-serial.o
 obj-$(CONFIG_USB_SERIAL_ZIO)			+= zio.o
+obj-$(CONFIG_USB_SERIAL_USI6276)                += usi6276_modem_ctrl.o usi6276_serial.o

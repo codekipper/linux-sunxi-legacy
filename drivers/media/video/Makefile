@@ -11,7 +11,14 @@ stkwebcam-objs	:=	stk-webcam.o stk-sensor.o
 omap2cam-objs	:=	omap24xxcam.o omap24xxcam-dma.o
 
 videodev-objs	:=	v4l2-dev.o v4l2-ioctl.o v4l2-device.o v4l2-fh.o \
-			v4l2-event.o v4l2-ctrls.o v4l2-subdev.o
+			v4l2-event.o v4l2-subdev.o
+
+ifdef CONFIG_VIDEO_CSI_SUNXI
+videodev-objs	+=	v4l2-ctrls.o
+endif
+ifdef CONFIG_VIDEO_SUNXI_VFE
+videodev-objs	+=	v4l2-ctrls_new.o
+endif
 
 # V4L2 core modules
 
@@ -48,7 +55,7 @@ obj-$(CONFIG_VIDEO_BT866) += bt866.o
 obj-$(CONFIG_VIDEO_KS0127) += ks0127.o
 obj-$(CONFIG_VIDEO_THS7303) += ths7303.o
 obj-$(CONFIG_VIDEO_VINO) += indycam.o
-obj-$(CONFIG_VIDEO_TVP5150) += tvp5150.o
+obj-m += tvp5150.o
 obj-$(CONFIG_VIDEO_TVP514X) += tvp514x.o
 obj-$(CONFIG_VIDEO_TVP7002) += tvp7002.o
 obj-$(CONFIG_VIDEO_MSP3400) += msp3400.o
@@ -90,7 +97,7 @@ obj-$(CONFIG_SOC_CAMERA_OV9640)		+= ov9640.o
 obj-$(CONFIG_SOC_CAMERA_OV9740)		+= ov9740.o
 obj-$(CONFIG_SOC_CAMERA_RJ54N1)		+= rj54n1cb0c.o
 obj-$(CONFIG_SOC_CAMERA_TW9910)		+= tw9910.o
-
+obj-$(CONFIG_VIDEO_CSI_SUNXI)					+= sunxi_csi/device/
 # And now the v4l2 drivers:
 
 obj-$(CONFIG_VIDEO_BT848) += bt8xx/
@@ -198,6 +205,18 @@ obj-$(CONFIG_VIDEO_IR_I2C)  += ir-kbd-i2c.o
 obj-y	+= davinci/
 
 obj-$(CONFIG_ARCH_OMAP)	+= omap/
+
+ifdef CONFIG_VIDEO_SUN6I_CEDAR
+  obj-$(CONFIG_VIDEO_SUN6I_CEDAR) += sun6i/
+endif
+
+ifdef CONFIG_VIDEO_CSI_SUNXI
+obj-$(CONFIG_CSI1_SUNXI) += sunxi_csi/csi1/
+endif
+
+ifdef CONFIG_VIDEO_SUNXI_VFE
+obj-$(CONFIG_VIDEO_SUNXI_VFE) += sunxi-vfe/
+endif
 
 ccflags-y += -Idrivers/media/dvb/dvb-core
 ccflags-y += -Idrivers/media/dvb/frontends

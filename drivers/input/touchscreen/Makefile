@@ -46,6 +46,7 @@ obj-$(CONFIG_TOUCHSCREEN_S3C2410)	+= s3c2410_ts.o
 obj-$(CONFIG_TOUCHSCREEN_ST1232)	+= st1232.o
 obj-$(CONFIG_TOUCHSCREEN_STMPE)		+= stmpe-ts.o
 obj-$(CONFIG_TOUCHSCREEN_TNETV107X)	+= tnetv107x-ts.o
+obj-$(CONFIG_TOUCHSCREEN_SYNAPTICS_I2C_RMI)	+= synaptics_i2c_rmi.o
 obj-$(CONFIG_TOUCHSCREEN_TOUCHIT213)	+= touchit213.o
 obj-$(CONFIG_TOUCHSCREEN_TOUCHRIGHT)	+= touchright.o
 obj-$(CONFIG_TOUCHSCREEN_TOUCHWIN)	+= touchwin.o
@@ -64,3 +65,13 @@ obj-$(CONFIG_TOUCHSCREEN_WM97XX_MAINSTONE)	+= mainstone-wm97xx.o
 obj-$(CONFIG_TOUCHSCREEN_WM97XX_ZYLONITE)	+= zylonite-wm97xx.o
 obj-$(CONFIG_TOUCHSCREEN_W90X900)	+= w90p910_ts.o
 obj-$(CONFIG_TOUCHSCREEN_TPS6507X)	+= tps6507x-ts.o
+obj-$(CONFIG_TOUCHSCREEN_FT5X_TS)       += ft5x_ts.o
+obj-$(CONFIG_TOUCHSCREEN_GSLX680)       += gslX680.o
+obj-$(CONFIG_TOUCHSCREEN_GT82X)          += gt82x.o
+obj-$(CONFIG_TOUCHSCREEN_SUN6I_TS)      += sun6i-ts.o
+obj-$(CONFIG_TOUCHSCREEN_ILITEK_AIMVF) +=ilitek_aimvF.o
+obj-$(CONFIG_TOUCHSCREEN_AW5306)                += aw5306_ts.o
+
+aw5306_ts-objs := AW5306_ts.o AW5306_userpara.o libAW5306
+
+

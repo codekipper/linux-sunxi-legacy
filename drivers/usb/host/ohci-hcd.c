@@ -757,6 +757,18 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd)
 	 */
 	ints = ohci_readl(ohci, &regs->intrstatus);
 
+{
+    if(ints & OHCI_INTR_RHSC){
+        int portstatus0 = 0;
+
+        portstatus0 = ohci_readl(ohci, &ohci->regs->roothub.portstatus[0]);
+        if((portstatus0 & RH_PS_CCS) && (portstatus0 & RH_PS_CSC)){
+            printk("ohci_irq: fullspeed or lowspeed device connect\n");
+        }else if(!(portstatus0 & RH_PS_CCS) && (portstatus0 & RH_PS_CSC)){
+            printk("ohci_irq: fullspeed or lowspeed device disconnect\n");
+        }
+    }
+}
 	/* Check for an all 1's result which is a typical consequence
 	 * of dead, unclocked, or unplugged (CardBus...) devices
 	 */
@@ -1121,6 +1133,13 @@ MODULE_LICENSE ("GPL");
 #define PLATFORM_DRIVER		ohci_xls_driver
 #endif
 
+#ifdef CONFIG_USB_SW_SUN6I_HCI
+#include "ohci_sun6i.c"
+#define	PLATFORM_DRIVER		sw_ohci_hcd_driver
+#endif
+
+
+
 #if	!defined(PCI_DRIVER) &&		\
 	!defined(PLATFORM_DRIVER) &&	\
 	!defined(OMAP1_PLATFORM_DRIVER) &&	\
@@ -1266,7 +1285,8 @@ static int __init ohci_hcd_mod_init(void)
 	clear_bit(USB_OHCI_LOADED, &usb_hcds_loaded);
 	return retval;
 }
-module_init(ohci_hcd_mod_init);
+//module_init(ohci_hcd_mod_init);
+fs_initcall(ohci_hcd_mod_init);
 
 static void __exit ohci_hcd_mod_exit(void)
 {

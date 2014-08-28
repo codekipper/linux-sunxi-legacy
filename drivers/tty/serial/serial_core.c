@@ -94,6 +94,9 @@ static void __uart_start(struct tty_struct *tty)
 	struct uart_state *state = tty->driver_data;
 	struct uart_port *port = state->uart_port;
 
+	if (port->ops->wake_peer)
+		port->ops->wake_peer(port);
+
 	if (!uart_circ_empty(&state->xmit) && state->xmit.buf &&
 	    !tty->stopped && !tty->hw_stopped)
 		port->ops->start_tx(port);
@@ -498,7 +501,7 @@ static int uart_write(struct tty_struct *tty,
 	struct uart_state *state = tty->driver_data;
 	struct uart_port *port;
 	struct circ_buf *circ;
-	unsigned long flags;
+	unsigned long flags=0;
 	int c, ret = 0;
 
 	/*
@@ -529,8 +532,8 @@ static int uart_write(struct tty_struct *tty,
 		count -= c;
 		ret += c;
 	}
-	spin_unlock_irqrestore(&port->lock, flags);
 
+	spin_unlock_irqrestore(&port->lock, flags);
 	uart_start(tty);
 	return ret;
 }

@@ -309,8 +309,15 @@ static const char fsg_string_interface[] = "Mass Storage";
 #define FSG_NO_OTG               1
 #define FSG_NO_INTR_EP           1
 
+#define DO_VFS_STAT              1
+#define DO_VFS_END               2
+
 #include "storage_common.c"
 
+extern atomic_t vfs_read_flag;
+extern atomic_t vfs_write_flag;
+extern unsigned int vfs_amount;
+extern loff_t vfs_file_offset;
 
 /*-------------------------------------------------------------------------*/
 
@@ -676,6 +683,7 @@ static void start_transfer(struct fsg_dev *fsg, struct usb_ep *ep,
 	spin_lock_irq(&fsg->common->lock);
 	*pbusy = 1;
 	*state = BUF_STATE_BUSY;
+       req->dma_flag = 1;
 	spin_unlock_irq(&fsg->common->lock);
 	rc = usb_ep_queue(ep, req, GFP_KERNEL);
 	if (rc != 0) {
@@ -814,9 +822,29 @@ static int do_read(struct fsg_common *common)
 
 		/* Perform the read */
 		file_offset_tmp = file_offset;
-		nread = vfs_read(curlun->filp,
-				 (char __user *)bh->buf,
-				 amount, &file_offset_tmp);
+#ifdef CONFIG_USB_SW_SUN6I_USB
+        if(curlun->zero_disk){
+            if(file_offset_tmp == 0){
+        		nread = vfs_read(curlun->filp,
+        				 (char __user *)bh->buf,
+        				 amount, &file_offset_tmp);
+            }else{
+                nread = amount;
+            }
+        }else{
+			vfs_amount = amount;
+			vfs_file_offset = file_offset_tmp;
+			atomic_set(&vfs_read_flag, DO_VFS_STAT);
+            nread = vfs_read(curlun->filp,
+                     (char __user *)bh->buf,
+                     amount, &file_offset_tmp);
+			atomic_set(&vfs_read_flag, DO_VFS_END);
+        }
+#else
+        nread = vfs_read(curlun->filp,
+                 (char __user *)bh->buf,
+                 amount, &file_offset_tmp);
+#endif
 		VLDBG(curlun, "file read %u @ %llu -> %d\n", amount,
 		      (unsigned long long)file_offset, (int)nread);
 		if (signal_pending(current))
@@ -1007,9 +1035,27 @@ static int do_write(struct fsg_common *common)
 
 			/* Perform the write */
 			file_offset_tmp = file_offset;
-			nwritten = vfs_write(curlun->filp,
-					     (char __user *)bh->buf,
-					     amount, &file_offset_tmp);
+#ifdef CONFIG_USB_SW_SUN6I_USB
+            if(curlun->zero_disk){
+                nwritten = amount;
+            }else{
+            		/*在删除小文件时vfs_write可能会超时，引起usb reset,增加延时，速度会下降*/
+								if(amount <= 512){
+									msleep(1);
+								}
+				vfs_amount = amount;
+				vfs_file_offset = file_offset_tmp;
+				atomic_set(&vfs_write_flag, DO_VFS_STAT);
+                nwritten = vfs_write(curlun->filp,
+                             (char __user *)bh->buf,
+                             amount, &file_offset_tmp);
+				atomic_set(&vfs_write_flag, DO_VFS_END);
+            }
+#else
+            nwritten = vfs_write(curlun->filp,
+                         (char __user *)bh->buf,
+                         amount, &file_offset_tmp);
+#endif
 			VLDBG(curlun, "file write %u @ %llu -> %d\n", amount,
 			      (unsigned long long)file_offset, (int)nwritten);
 			if (signal_pending(current))
@@ -1058,6 +1104,7 @@ static int do_write(struct fsg_common *common)
 
 /*-------------------------------------------------------------------------*/
 
+#ifndef CONFIG_USB_SW_SUN6I_USB
 static int do_synchronize_cache(struct fsg_common *common)
 {
 	struct fsg_lun	*curlun = common->curlun;
@@ -1070,10 +1117,16 @@ static int do_synchronize_cache(struct fsg_common *common)
 		curlun->sense_data = SS_WRITE_ERROR;
 	return 0;
 }
-
+#else
+static int do_synchronize_cache(struct fsg_common *common)
+{
+	return 0;
+}
+#endif
 
 /*-------------------------------------------------------------------------*/
 
+#ifndef CONFIG_USB_SW_SUN6I_USB
 static void invalidate_sub(struct fsg_lun *curlun)
 {
 	struct file	*filp = curlun->filp;
@@ -1089,7 +1142,9 @@ static int do_verify(struct fsg_common *common)
 	struct fsg_lun		*curlun = common->curlun;
 	u32			lba;
 	u32			verification_length;
+#ifndef CONFIG_USB_SW_SUN6I_USB
 	struct fsg_buffhd	*bh = common->next_buffhd_to_fill;
+#endif
 	loff_t			file_offset, file_offset_tmp;
 	u32			amount_left;
 	unsigned int		amount;
@@ -1153,9 +1208,13 @@ static int do_verify(struct fsg_common *common)
 
 		/* Perform the read */
 		file_offset_tmp = file_offset;
+#ifndef CONFIG_USB_SW_SUN6I_USB
 		nread = vfs_read(curlun->filp,
 				(char __user *) bh->buf,
 				amount, &file_offset_tmp);
+#else
+        nread = amount;
+#endif
 		VLDBG(curlun, "file read %u @ %llu -> %d\n", amount,
 				(unsigned long long) file_offset,
 				(int) nread);
@@ -1182,7 +1241,12 @@ static int do_verify(struct fsg_common *common)
 	}
 	return 0;
 }
-
+#else
+static int do_verify(struct fsg_common *common)
+{
+	return 0;
+}
+#endif
 
 /*-------------------------------------------------------------------------*/
 
@@ -1499,8 +1563,11 @@ static int do_prevent_allow(struct fsg_common *common)
 		return -EINVAL;
 	}
 
-	if (curlun->prevent_medium_removal && !prevent)
+	if (curlun->prevent_medium_removal && !prevent){
+#ifndef CONFIG_USB_SW_SUN6I_USB
 		fsg_lun_fsync_sub(curlun);
+#endif
+	}
 	curlun->prevent_medium_removal = prevent;
 	return 0;
 }
@@ -2692,7 +2759,9 @@ static int fsg_main_thread(void *common_)
 static DEVICE_ATTR(ro, 0644, fsg_show_ro, fsg_store_ro);
 static DEVICE_ATTR(nofua, 0644, fsg_show_nofua, fsg_store_nofua);
 static DEVICE_ATTR(file, 0644, fsg_show_file, fsg_store_file);
-
+#ifdef CONFIG_USB_SW_SUN6I_USB
+static DEVICE_ATTR(zero_disk, 0644, fsg_show_zero_disk, fsg_zero_disk);
+#endif
 
 /****************************** FSG COMMON ******************************/
 
@@ -2789,6 +2858,10 @@ static struct fsg_common *fsg_common_init(struct fsg_common *common,
 		curlun->ro = lcfg->cdrom || lcfg->ro;
 		curlun->initially_ro = curlun->ro;
 		curlun->removable = lcfg->removable;
+#ifdef CONFIG_USB_SW_SUN6I_USB
+		curlun->nofua = lcfg->nofua;
+		curlun->zero_disk = 0;
+#endif
 		curlun->dev.release = fsg_lun_release;
 		curlun->dev.parent = &gadget->dev;
 		/* curlun->dev.driver = &fsg_driver.driver; XXX */
@@ -2816,7 +2889,11 @@ static struct fsg_common *fsg_common_init(struct fsg_common *common,
 		rc = device_create_file(&curlun->dev, &dev_attr_nofua);
 		if (rc)
 			goto error_luns;
-
+#ifdef CONFIG_USB_SW_SUN6I_USB
+        rc = device_create_file(&curlun->dev, &dev_attr_zero_disk);
+        if (rc)
+            goto error_luns;
+#endif
 		if (lcfg->filename) {
 			rc = fsg_lun_open(curlun, lcfg->filename);
 			if (rc)
@@ -2858,6 +2935,8 @@ buffhds_first_it:
 			i = 0x0399;
 		}
 	}
+
+#ifndef CONFIG_USB_SW_SUN6I_USB
 	snprintf(common->inquiry_string, sizeof common->inquiry_string,
 		 "%-8s%-16s%04x", cfg->vendor_name ?: "Linux",
 		 /* Assume product name dependent on the first LUN */
@@ -2865,6 +2944,18 @@ buffhds_first_it:
 				     ? "File-Stor Gadget"
 				     : "File-CD Gadget"),
 		 i);
+#else
+{
+    struct android_usb_config config;
+
+    memset(&config, 0, sizeof(struct android_usb_config));
+    get_android_usb_config(&config);
+
+    snprintf(common->inquiry_string, sizeof common->inquiry_string,
+            "%-8s%-16s%04d",
+            config.msc_vendor_name, config.msc_product_name, config.msc_release);
+}
+#endif
 
 	/*
 	 * Some peripheral controllers are known not to be able to
@@ -2948,6 +3039,9 @@ static void fsg_common_release(struct kref *ref)
 			device_remove_file(&lun->dev, &dev_attr_nofua);
 			device_remove_file(&lun->dev, &dev_attr_ro);
 			device_remove_file(&lun->dev, &dev_attr_file);
+#ifdef CONFIG_USB_SW_SUN6I_USB
+			device_remove_file(&lun->dev, &dev_attr_zero_disk);
+#endif
 			fsg_lun_close(lun);
 			device_unregister(&lun->dev);
 		}
@@ -3095,6 +3189,7 @@ static int fsg_bind_config(struct usb_composite_dev *cdev,
 	fsg->function.disable     = fsg_disable;
 
 	fsg->common               = common;
+	fsg->common->fsg          = fsg;        //add by wangjx 2012_12_8
 	/*
 	 * Our caller holds a reference to common structure so we
 	 * don't have to be worry about it being freed until we return

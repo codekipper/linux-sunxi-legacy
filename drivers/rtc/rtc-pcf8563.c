@@ -14,11 +14,26 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/i2c.h>
+
 #include <linux/bcd.h>
 #include <linux/rtc.h>
-#include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/init.h>
+#include <linux/slab.h>
+#include <linux/i2c.h>
+#include <linux/mutex.h>
+#include <linux/delay.h>
+#include <linux/interrupt.h>
+#include <linux/irq.h>
+#include <linux/hwmon-sysfs.h>
+#include <linux/err.h>
+#include <linux/hwmon.h>
+#include <linux/input-polldev.h>
+#include <linux/device.h>
+
+#include <mach/system.h>
+#include <mach/hardware.h>
+#include <mach/sys_config.h>
 
 #define DRV_VERSION "0.4.3"
 
@@ -45,6 +60,9 @@
 #define PCF8563_SC_LV		0x80 /* low voltage */
 #define PCF8563_MO_C		0x80 /* century */
 
+static const unsigned short normal_i2c[] = {0x51};
+
+#define RTC_NAME              "pcf8563"
 static struct i2c_driver pcf8563_driver;
 
 struct pcf8563 {
@@ -66,10 +84,69 @@ struct pcf8563 {
 	int c_polarity;	/* 0: MO_C=1 means 19xx, otherwise MO_C=1 means 20xx */
 };
 
-/*
- * In the routines that deal directly with the pcf8563 hardware, we use
- * rtc_time -- month 0-11, hour 0-23, yr = calendar year-epoch.
+static int i2c_write_bytes(struct i2c_client *client, uint8_t *data, uint16_t len)
+{
+	struct i2c_msg msg;
+	int ret=-1;
+	
+	msg.flags = !I2C_M_RD;
+	msg.addr  = client->addr;
+	msg.len   = len;
+	msg.buf   = data;		
+	
+	ret=i2c_transfer(client->adapter, &msg,1);
+	return ret;
+}
+
+static bool rtc_i2c_test(struct i2c_client * client)
+{
+	int ret, retry;
+	uint8_t test_data[1] = { 0 };	//only write a data address.
+	
+	for(retry=0; retry < 2; retry++)
+	{
+		ret =i2c_write_bytes(client, test_data, 1);	//Test i2c.
+		if (ret == 1)
+			break;
+		msleep(5);
+	}
+	
+	return ret==1 ? true : false;
+}
+
+/**
+ * gsensor_detect - Device detection callback for automatic device creation
+ * return value:  
+ *                    = 0; success;
+ *                    < 0; err
  */
+static int rtc_detect(struct i2c_client *client, struct i2c_board_info *info)
+{
+	struct i2c_adapter *adapter = client->adapter;
+	int ret;
+	int twi_id = 2;
+
+        if (!i2c_check_functionality(adapter, I2C_FUNC_I2C))
+                return -1;
+    
+	if(twi_id == adapter->nr){
+            printk("%s: addr= %x\n",__func__,client->addr);
+
+            ret = rtc_i2c_test(client);
+            ret = 1; 
+        	if(!ret){
+        		printk("%s:I2C connection might be something wrong or\
+        		         maybe the other gsensor equipment! \n",__func__);
+        		return -1;
+        	}else{           	    
+            	        strlcpy(info->type,RTC_NAME, I2C_NAME_SIZE);
+    		        return 0;	
+	        }
+
+	}else{
+		return -1;
+	}
+} 
 static int pcf8563_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 {
 	struct pcf8563 *pcf8563 = i2c_get_clientdata(client);
@@ -80,6 +157,7 @@ static int pcf8563_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 		{ client->addr, I2C_M_RD, 13, buf },	/* read status + date */
 	};
 
+       printk("  pcf8563_get_datetime  +++++++++++++++++++++++++ \n");
 	/* read registers */
 	if ((i2c_transfer(client->adapter, msgs, 2)) != 2) {
 		dev_err(&client->dev, "%s: read error\n", __func__);
@@ -133,6 +211,7 @@ static int pcf8563_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 	int i, err;
 	unsigned char buf[9];
 
+       printk("   pcf8563_set_datetime ++++++++++++++++++++++++++++ \n");
 	dev_dbg(&client->dev, "%s: secs=%d, mins=%d, hours=%d, "
 		"mday=%d, mon=%d, year=%d, wday=%d\n",
 		__func__,
@@ -195,6 +274,7 @@ static int pcf8563_probe(struct i2c_client *client,
 
 	int err = 0;
 
+        printk("  pcf8563_probe ++++++++++++++++++++++++++++ \n");
 	dev_dbg(&client->dev, "%s\n", __func__);
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
@@ -244,16 +324,20 @@ static const struct i2c_device_id pcf8563_id[] = {
 MODULE_DEVICE_TABLE(i2c, pcf8563_id);
 
 static struct i2c_driver pcf8563_driver = {
+	.class          = I2C_CLASS_HWMON,
 	.driver		= {
-		.name	= "rtc-pcf8563",
+		.name	= "pcf8563",
 	},
 	.probe		= pcf8563_probe,
 	.remove		= pcf8563_remove,
 	.id_table	= pcf8563_id,
+	.address_list	= normal_i2c,
 };
 
 static int __init pcf8563_init(void)
 {
+        printk("  pcf8563_init  +++++++++++++++++++++++++++++++++++ \n");
+        pcf8563_driver.detect = rtc_detect;
 	return i2c_add_driver(&pcf8563_driver);
 }
 

@@ -583,7 +583,7 @@ config LOG_BUF_SHIFT
 # Architectures with an unreliable sched_clock() should select this:
 #
 config HAVE_UNSTABLE_SCHED_CLOCK
-	bool
+	bool "Support unstable sched clock"
 
 menuconfig CGROUPS
 	boolean "Control Group support"
@@ -961,6 +961,12 @@ config SYSCTL
 
 config ANON_INODES
 	bool
+
+config PANIC_TIMEOUT
+	int "Default panic timeout"
+	default 0
+	help
+	  Set default panic timeout.
 
 menuconfig EXPERT
 	bool "Configure standard kernel features (expert users)"
