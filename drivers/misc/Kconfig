@@ -4,6 +4,14 @@
 
 menu "Misc devices"
 
+config SUNXI_VIBRATOR
+	tristate "Vibrator sunxi platform"
+	help
+	  Say Y here if you have a vibrator on your board.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sunxi-vibrator.
+
 config SENSORS_LIS3LV02D
 	tristate
 	depends on INPUT
@@ -517,6 +525,13 @@ config WL127X_RFKILL
 	---help---
 	 Creates an rfkill entry in sysfs for power control of Bluetooth
 	 TI wl127x chips.
+
+config SUNXI_BROM_READ
+	tristate "Read the BROM infomation"
+	depends on ARCH_SUN8I 
+	default n
+	---help---
+	 This option can allow program access brom space by the file node.
 	 
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"

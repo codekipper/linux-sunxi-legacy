@@ -26,6 +26,8 @@
 #include <linux/device.h>
 #include <linux/mutex.h>
 #include <linux/rcupdate.h>
+
+
 #include "input-compat.h"
 
 MODULE_AUTHOR("Vojtech Pavlik <vojtech@suse.cz>");
@@ -44,6 +46,8 @@ static LIST_HEAD(input_handler_list);
  * input handlers.
  */
 static DEFINE_MUTEX(input_mutex);
+
+
 
 static struct input_handler *input_table[8];
 
@@ -68,6 +72,7 @@ static int input_defuzz_abs_event(int value, int old_val, int fuzz)
 
 	return value;
 }
+
 
 /*
  * Pass event first through all filters and then, if event has not been
@@ -593,6 +598,10 @@ static void input_dev_release_keys(struct input_dev *dev)
 
 	if (is_event_supported(EV_KEY, dev->evbit, EV_MAX)) {
 		for (code = 0; code <= KEY_MAX; code++) {
+			/* 2014-07-16 by Ming Li*/
+			/* to slove press long power can't power system in shutdown charge */
+			if (code == KEY_POWER)
+				continue;
 			if (is_event_supported(code, dev->keybit, KEY_MAX) &&
 			    __test_and_clear_bit(code, dev->key)) {
 				input_pass_event(dev, EV_KEY, code, 0);
@@ -1858,7 +1867,7 @@ int input_register_device(struct input_dev *dev)
 		return error;
 
 	path = kobject_get_path(&dev->dev.kobj, GFP_KERNEL);
-	pr_info("%s as %s\n",
+	pr_debug("%s as %s\n",
 		dev->name ? dev->name : "Unspecified device",
 		path ? path : "N/A");
 	kfree(path);

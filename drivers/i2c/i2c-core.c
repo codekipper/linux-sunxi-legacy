@@ -380,7 +380,11 @@ static int i2c_check_addr_validity(unsigned short addr)
 	 *  0x78-0x7b  10-bit slave addressing
 	 *  0x7c-0x7f  Reserved for future purposes
 	 */
+#ifdef CONFIG_ARCH_SUNXI
+    if (addr < 0x03 || addr > 0x77)
+#else
 	if (addr < 0x08 || addr > 0x77)
+#endif	
 		return -EINVAL;
 	return 0;
 }
@@ -714,7 +718,7 @@ i2c_sysfs_delete_device(struct device *dev, struct device_attribute *attr,
 	int res;
 
 	/* Parse parameters, reject extra parameters */
-	res = sscanf(buf, "%hi%c", &addr, &end);
+	res = sscanf(buf, "%hu%c", &addr, &end);
 	if (res < 1) {
 		dev_err(dev, "%s: Can't parse I2C address\n", "delete_device");
 		return -EINVAL;
@@ -1490,9 +1494,11 @@ static int i2c_detect_address(struct i2c_client *temp_client,
 	if (i2c_check_addr_busy(adapter, addr))
 		return 0;
 
+#ifndef CONFIG_ARCH_SUNXI
 	/* Make sure there is something at this address */
 	if (!i2c_default_probe(adapter, addr))
 		return 0;
+#endif
 
 	/* Finally call the custom detection function */
 	memset(&info, 0, sizeof(struct i2c_board_info));

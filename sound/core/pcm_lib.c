@@ -341,6 +341,7 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 		/* we know that one period was processed */
 		/* delta = "expected next hw_ptr" for in_interrupt != 0 */
 		delta = runtime->hw_ptr_interrupt + runtime->period_size;
+
 		if (delta > new_hw_ptr) {
 			/* check for double acknowledged interrupts */
 			hdelta = jiffies - runtime->hw_ptr_jiffies;
@@ -1861,7 +1862,7 @@ static int wait_for_avail(struct snd_pcm_substream *substream,
 	*availp = avail;
 	return err;
 }
-	
+
 static int snd_pcm_lib_write_transfer(struct snd_pcm_substream *substream,
 				      unsigned int hwoff,
 				      unsigned long data, unsigned int off,
@@ -1875,6 +1876,8 @@ static int snd_pcm_lib_write_transfer(struct snd_pcm_substream *substream,
 			return err;
 	} else {
 		char *hwbuf = runtime->dma_area + frames_to_bytes(runtime, hwoff);
+
+		memset(hwbuf, 0, frames_to_bytes(runtime, frames));
 		if (copy_from_user(hwbuf, buf, frames_to_bytes(runtime, frames)))
 			return -EFAULT;
 	}
@@ -2287,3 +2290,28 @@ snd_pcm_sframes_t snd_pcm_lib_readv(struct snd_pcm_substream *substream,
 }
 
 EXPORT_SYMBOL(snd_pcm_lib_readv);
+
+#ifdef AUDIO_KARAOKE
+/*for hdmi/audiocodec/spdif mixer capture/play buffer*/
+void audio_mixer_buffer(char *out_buf, char *offloadbuf, char *pcmbuf, int bufflen) {
+	short * p_out_data 	= (short *)out_buf;
+	short * offload_buf = (short *)offloadbuf;
+	short * pcm_buf 	= (short *)pcmbuf;
+	int frames, cnt = 0;
+
+	frames = bufflen/2;
+	for (cnt = 0; cnt < frames; cnt++) {
+		if ((offload_buf != NULL) && (pcm_buf != NULL)) {
+			if ((*(offload_buf + cnt) < 0) && (*(pcm_buf + cnt) < 0)) {
+				*(p_out_data + cnt) = *(offload_buf + cnt) + *(pcm_buf + cnt ) - (((*(offload_buf + cnt)) * (*(pcm_buf + cnt )))/(-32767));
+			} else {
+				*(p_out_data + cnt) = *(offload_buf + cnt) + *(pcm_buf + cnt ) - (((*(offload_buf + cnt)) * (*(pcm_buf + cnt )))/(32768));
+			}
+		} else {
+			pr_warn("nopoint:%s,line:%d\n", __func__, __LINE__);
+			break;
+		}
+	}
+}
+EXPORT_SYMBOL(audio_mixer_buffer);
+#endif

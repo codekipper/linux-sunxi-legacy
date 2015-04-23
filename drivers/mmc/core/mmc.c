@@ -262,7 +262,7 @@ static int mmc_read_ext_csd(struct mmc_card *card, u8 *ext_csd)
 	}
 
 	card->ext_csd.rev = ext_csd[EXT_CSD_REV];
-	if (card->ext_csd.rev > 6) {
+	if (card->ext_csd.rev > 7) {
 		pr_err("%s: unrecognised EXT_CSD revision %d\n",
 			mmc_hostname(card->host), card->ext_csd.rev);
 		err = -EINVAL;
@@ -1019,6 +1019,9 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 			card->poweroff_notify_state = MMC_POWERED_ON;
 	}
 
+	//pr_info("up clk first%s\n",__FUNCTION__);
+	mmc_set_clock(host,25000000);
+
 	/*
 	 * Activate high speed (if supported)
 	 */
@@ -1070,15 +1073,11 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	 * Indicate DDR mode (if supported).
 	 */
 	if (mmc_card_highspeed(card)) {
-		if ((card->ext_csd.card_type & EXT_CSD_CARD_TYPE_DDR_1_8V)
-			&& ((host->caps & (MMC_CAP_1_8V_DDR |
-			     MMC_CAP_UHS_DDR50))
-				== (MMC_CAP_1_8V_DDR | MMC_CAP_UHS_DDR50)))
+		if ((card->ext_csd.raw_card_type & EXT_CSD_CARD_TYPE_DDR_1_8V)
+			&& ((host->caps & MMC_CAP_1_8V_DDR) == MMC_CAP_1_8V_DDR )) 
 				ddr = MMC_1_8V_DDR_MODE;
-		else if ((card->ext_csd.card_type & EXT_CSD_CARD_TYPE_DDR_1_2V)
-			&& ((host->caps & (MMC_CAP_1_2V_DDR |
-			     MMC_CAP_UHS_DDR50))
-				== (MMC_CAP_1_2V_DDR | MMC_CAP_UHS_DDR50)))
+		else if ((card->ext_csd.raw_card_type & EXT_CSD_CARD_TYPE_DDR_1_2V) 
+			&& ((host->caps & MMC_CAP_1_2V_DDR)== MMC_CAP_1_2V_DDR))
 				ddr = MMC_1_2V_DDR_MODE;
 	}
 
@@ -1342,12 +1341,18 @@ static int mmc_suspend(struct mmc_host *host)
 	BUG_ON(!host->card);
 
 	mmc_claim_host(host);
+	
+#if defined(CONFIG_ARCH_SUN8IW5P1) || defined(CONFIG_ARCH_SUN8IW6P1) || defined(CONFIG_ARCH_SUN9IW1P1)
+
+#else
 	if (mmc_card_can_sleep(host)) {
 		err = mmc_card_sleep(host);
 		if (!err)
 			mmc_card_set_sleep(host->card);
 	} else if (!mmc_host_is_spi(host))
 		mmc_deselect_cards(host);
+#endif
+
 	host->card->state &= ~(MMC_STATE_HIGHSPEED | MMC_STATE_HIGHSPEED_200);
 	mmc_release_host(host);
 
@@ -1368,11 +1373,16 @@ static int mmc_resume(struct mmc_host *host)
 	BUG_ON(!host->card);
 
 	mmc_claim_host(host);
+	
+#if defined(CONFIG_ARCH_SUN8IW5P1) || defined(CONFIG_ARCH_SUN8IW6P1) || defined(CONFIG_ARCH_SUN9IW1P1)
+
+#else
 	if (mmc_card_is_sleep(host->card)) {
 		err = mmc_card_awake(host);
 		mmc_card_clr_sleep(host->card);
 	} else
-		err = mmc_init_card(host, host->ocr, host->card);
+#endif
+	err = mmc_init_card(host, host->ocr, host->card);
 	mmc_release_host(host);
 
 	return err;
