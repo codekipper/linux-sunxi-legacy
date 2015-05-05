@@ -30,6 +30,8 @@
 #include <linux/cpu.h>
 #include <linux/cpumask.h>
 #include <linux/cpu_budget_cooling.h>
+#include "thermal_core.h"
+
 #define CREATE_TRACE_POINTS
 #include <trace/events/budget_cooling.h>
 #define BOOT_CPU    0
@@ -247,6 +249,8 @@ static int cpu_budget_apply_cooling(struct cpu_budget_cooling_device *cpu_budget
 				unsigned long cooling_state)
 {
     unsigned long flags;
+    struct thermal_instance *instance;
+    int temperature = 0;
 
 	/* Check if the old cooling action is same as new cooling action */
 	if (cpu_budget_device->cpu_budget_state == cooling_state)
@@ -271,7 +275,11 @@ static int cpu_budget_apply_cooling(struct cpu_budget_cooling_device *cpu_budget
                               cpu_budget_device->cluster1_freq_limit,
                               cpu_budget_device->cluster1_num_limit,
                               cpu_budget_device->gpu_throttle);
-    pr_debug("CPU Budget: Limit state:%lu item[%d,%d,%d,%d %d]\n",cooling_state,
+	list_for_each_entry(instance, &(cpu_budget_device->cool_dev->thermal_instances), cdev_node) {
+        if(instance->tz->temperature > temperature)
+            temperature = instance->tz->temperature;
+    }
+    pr_info("CPU Budget: Temperature: %u Limit state:%lu item[%d,%d,%d,%d %d]\n",temperature,cooling_state,
     cpu_budget_device->cluster0_freq_limit,
     cpu_budget_device->cluster0_num_limit ,
     cpu_budget_device->cluster1_freq_limit ,
@@ -373,7 +381,7 @@ static int cpufreq_thermal_notifier(struct notifier_block *nb,
         {
             cpufreq_verify_within_limits(policy, min_freq, max_freq);
 			policy->user_policy.max = policy->max;
-            pr_debug("CPU Budget:update CPU %d cpufreq max to %lu min to %lu\n",policy->cpu,max_freq, min_freq);
+            pr_info("CPU Budget:update CPU %d cpufreq max to %lu min to %lu\n",policy->cpu,max_freq, min_freq);
         }
     }
 	return 0;

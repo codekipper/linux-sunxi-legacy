@@ -45,7 +45,8 @@ __s32 standby_key_init(void)
     KeyCtrl = KeyReg->Lradc_Ctrl;
     KeyIntc = KeyReg->Lradc_Intc;
     KeyReg->Lradc_Ctrl = 0;
-    standby_mdelay(10);
+    change_runtime_env();
+    delay_ms(10);
     KeyReg->Lradc_Ctrl = (0x1<<6)|(0x1<<0);
     KeyReg->Lradc_Intc = (0x1<<1);
     KeyReg->Lradc_Ints = (0x1<<1);

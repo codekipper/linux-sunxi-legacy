@@ -103,7 +103,7 @@ static int bt_net_hw_params(struct snd_pcm_substream *substream,
 	int freq_in = 24576000;
 	if (params_rate(params) != 8000)
 		return -EINVAL;
-	sunxi_daudio_set_rate(freq_in);
+	sunxi_daudio0_set_rate(freq_in);
 	/* set the codec FLL */
 	ret = snd_soc_dai_set_pll(codec_dai, AC100_MCLK1, 0, freq_in, freq_in);
 	if (ret < 0)
@@ -130,7 +130,7 @@ static int bb_voice_hw_params(struct snd_pcm_substream *substream,
 	if (params_rate(params) != 8000)
 		return -EINVAL;
 	if (analog_bb){
-		sunxi_daudio_set_rate(freq_in);
+		sunxi_daudio0_set_rate(freq_in);
 		/* set the codec FLL */
 		ret = snd_soc_dai_set_pll(codec_dai, AC100_MCLK1, 0, freq_in, freq_in);
 		if (ret < 0)

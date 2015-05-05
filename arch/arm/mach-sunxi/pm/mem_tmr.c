@@ -164,4 +164,34 @@ void mem_tmr_disable_watchdog(void)
 	TmrReg->WDog1_Mode_Reg &= ~(1<<0);
 }
 
+/*
+*********************************************************************************************************
+*                           mem_tmr_set
+*
+*Description: set timer for wakeup system.
+*
+*Arguments  : second    time value for wakeup system.
+*
+*Return     : result, 0 - successed, -1 - failed;
+*
+*Notes      :
+*
+*********************************************************************************************************
+*/
+__s32 mem_tmr_set(__u32 second)
+{
+    /* config timer interrrupt */
+    TmrReg->IntSta     = 1;
+    TmrReg->IntCtl     = 1;
+
+    /* config timer0 for mem */
+    TmrReg->Tmr0Ctl    = 0;
+    TmrReg->Tmr0IntVal = second << 10;
+    TmrReg->Tmr0Ctl    = (1<<7) | (5<<4);
+    TmrReg->Tmr0Ctl   |= (1<<1);
+    TmrReg->Tmr0Ctl   |= (1<<0);
+
+    return 0;
+}
+
 

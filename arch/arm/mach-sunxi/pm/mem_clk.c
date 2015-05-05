@@ -52,6 +52,22 @@ __ccmu_reg_list_t * mem_get_ba(void)
 #ifdef CONFIG_ARCH_SUN8I
 static __ccmu_pll1_reg0000_t		CmuReg_Pll1Ctl_tmp;
 static __ccmu_sysclk_ratio_reg0050_t	CmuReg_SysClkDiv_tmp;
+
+#ifdef CONFIG_ARCH_SUN8IW8P1
+#define PIO_INT_DEB_REG (AW_GPIO_BASE_PA + 0x258)
+static __u32 pio_int_deb_back = 0;
+void mem_pio_clk_src_init(void)
+{
+    pio_int_deb_back = *(__u32*)PIO_INT_DEB_REG;
+    *(__u32*)PIO_INT_DEB_REG = pio_int_deb_back & (~1);
+}
+
+void mem_pio_clk_src_exit(void)
+{
+    *(__u32*)PIO_INT_DEB_REG = pio_int_deb_back;
+}
+#endif
+
 /*
 *********************************************************************************************************
 *                           mem_clk_save
@@ -271,15 +287,21 @@ __s32 mem_clk_set_misc(struct clk_misc_t *clk_misc)
 	CmuReg->PllC1Ctl	=	clk_misc->PllC1Ctl;	
 	CmuReg->PllVideo0Bias		= clk_misc->PllVideo0Bias			;           //0x228,  pll vedio bias reg
 	CmuReg->PllVeBias		= clk_misc->PllVeBias				;           //0x22c,  pll ve    bias reg
+	CmuReg->PllPeriphBias		= clk_misc->PllPeriphBias			;	    //0x234, pll periph bias
 	CmuReg->PllVideo0Reg0Pattern		= clk_misc->PllVideo0Reg0Pattern			;           //0x288,  pll vedio pattern reg
 	CmuReg->PllVideo0Reg1Pattern		= clk_misc->PllVideo0Reg1Pattern			;           //0x288,  pll vedio pattern reg
 	CmuReg->Pll3Ctl			= clk_misc->Pll3Ctl				;	    //0x10, vedio
 	CmuReg->Pll4Ctl			= clk_misc->Pll4Ctl				;	    //0x18, ve
+	CmuReg->Pll6Ctl			= clk_misc->Pll6Ctl				;	    //0x28, pll periph ctrl
+	*(volatile __u32 *)(&CmuReg->Apb2Div)= clk_misc->Apb2Div			;	    //0x58, apb2 divide ratio
 #endif	
 
 	//config axi ratio to 1+1 = 2;
 	//axi can not exceed 300M;
 	CmuReg_SysClkDiv_tmp.dwval = CmuReg->SysClkDiv.dwval;
+	CmuReg_SysClkDiv_tmp.bits.AXIClkDiv = 2;
+	CmuReg->SysClkDiv.dwval = CmuReg_SysClkDiv_tmp.dwval;
+	
 	CmuReg_SysClkDiv_tmp.bits.AXIClkDiv = 1;
 	CmuReg->SysClkDiv.dwval = CmuReg_SysClkDiv_tmp.dwval;
 	return 0;
@@ -313,6 +335,9 @@ __s32 mem_clk_get_misc(struct clk_misc_t *clk_misc)
 	clk_misc->PllVideo0Reg1Pattern	= CmuReg->PllVideo0Reg1Pattern		;           //0x288,  pll video pattern reg
 	clk_misc->Pll3Ctl		= CmuReg->Pll3Ctl			;           //0x10, video
 	clk_misc->Pll4Ctl		= CmuReg->Pll4Ctl			;           //0x18, ve
+	clk_misc->PllPeriphBias		= CmuReg->PllPeriphBias			;	    //0x234, pll periph bias
+	clk_misc->Pll6Ctl		= CmuReg->Pll6Ctl			;	    //0x28, pll periph ctrl
+	clk_misc->Apb2Div		= *(volatile __u32 *)(&CmuReg->Apb2Div) ;	    //0x58, apb2 divide ratio
 #endif	
 	
 #ifdef CONFIG_ARCH_SUN8IW5P1	
@@ -449,7 +474,7 @@ static __s32 setting_ahb0_para(void)
 
 	asm("dmb");
 	asm("isb");
-	save_mem_status(CLK_RESUME_START | 0xb);
+	//save_pm_secure_mem_status(CLK_RESUME_START | 0xb);
 	//open protect registers
 	reg_val = *(volatile __u32 *)(MC_RMCR);
 	reg_val |= (0x1<<3);
@@ -499,7 +524,7 @@ static __s32 setting_ahb0_para(void)
 	asm("dmb");
 	asm("isb");
 
-	save_mem_status(CLK_RESUME_START | 0xe);
+	//save_pm_secure_mem_status(CLK_RESUME_START | 0xe);
 	//close protect registers
 	reg_val = *(volatile __u32 *)(MC_RMCR);
 	reg_val &= ~(0x1<<3);
@@ -618,7 +643,7 @@ __s32 mem_clk_restore(struct clk_state *ccm_reg)
 	** then, restore bus;
  	** reason: pll src need be ready before restore cci,gtbus,ahb... bus src.
 	**/
-	save_mem_status(CLK_RESUME_START | 0x0);
+	//save_pm_secure_mem_status(CLK_RESUME_START | 0x0);
 	change_runtime_env();
 	//first, sys related clk.
 	//ccm_reg->ccm_reg->Pll_C0_Bias.dwval		= ccm_reg->ccm_reg_backup.Pll_C0_Bias.dwval		; 
@@ -632,7 +657,7 @@ __s32 mem_clk_restore(struct clk_state *ccm_reg)
 	ccm_reg->ccm_reg->Pll_Periph2_Bias.dwval	= ccm_reg->ccm_reg_backup.Pll_Periph2_Bias.dwval	; 
 	//ccm_reg->ccm_reg->Pll_C0_Tun.dwval		= ccm_reg->ccm_reg_backup.Pll_C0_Tun.dwval		; 
 	
-	save_mem_status(CLK_RESUME_START | 0x2);
+	//save_pm_secure_mem_status(CLK_RESUME_START | 0x2);
 	ccm_reg->ccm_reg->Pll_Audio_Pat_Cfg.dwval	= ccm_reg->ccm_reg_backup.Pll_Audio_Pat_Cfg.dwval	; 
 	ccm_reg->ccm_reg->Pll_Periph1_Pat_Cfg		= ccm_reg->ccm_reg_backup.Pll_Periph1_Pat_Cfg		;
 	ccm_reg->ccm_reg->Pll_Ve_Pat_Cfg.dwval		= ccm_reg->ccm_reg_backup.Pll_Ve_Pat_Cfg.dwval		; 
@@ -643,7 +668,7 @@ __s32 mem_clk_restore(struct clk_state *ccm_reg)
 	ccm_reg->ccm_reg->Pll_Periph2_Pat_Cfg		= ccm_reg->ccm_reg_backup.Pll_Periph2_Pat_Cfg		;
 							
 							
-	save_mem_status(CLK_RESUME_START | 0x4);
+	//save_pm_secure_mem_status(CLK_RESUME_START | 0x4);
 	delay_us(10);
 	ccm_reg->ccm_reg->Pll_Audio_Cfg.dwval		= ccm_reg->ccm_reg_backup.Pll_Audio_Cfg.dwval		;
 	delay_us(10);
@@ -662,7 +687,7 @@ __s32 mem_clk_restore(struct clk_state *ccm_reg)
 	//config perihp1 freq -> 240M 
 	ccm_reg->ccm_reg->Pll_Periph2_Cfg.dwval 	= 0x80041400;		//24*20/2 = 240M;
 	delay_us(10);
-	save_mem_status(CLK_RESUME_START | 0x5);
+	//save_pm_secure_mem_status(CLK_RESUME_START | 0x5);
 	ccm_reg->ccm_reg->Cpu_Clk_Src.dwval		= ccm_reg->ccm_reg_backup.Cpu_Clk_Src.dwval		; 
 	delay_us(10);
 	ccm_reg->ccm_reg->Axi0_Cfg.dwval		= ccm_reg->ccm_reg_backup.Axi0_Cfg.dwval		;
@@ -673,14 +698,14 @@ __s32 mem_clk_restore(struct clk_state *ccm_reg)
 	//switch gtbus src: gtbus clk = 240M, at this time, ahb0 src is gtbus.
 	ccm_reg->ccm_reg->Gtclk_Cfg.dwval		= (0x3000000)&(ccm_reg->ccm_reg_backup.Gtclk_Cfg.dwval);
 	delay_us(10);
-	save_mem_status(CLK_RESUME_START | 0x6);
+	//save_pm_secure_mem_status(CLK_RESUME_START | 0x6);
 	//config ahb0 divide ratio = 8, ahb0 freq = 240/8 = 30M.
 	ccm_reg->ccm_reg->Ahb0_Cfg.dwval		= (~0x3000000)&(ccm_reg->ccm_reg_backup.Ahb0_Cfg.dwval)	;
 	delay_us(10);
 	//config ahb0 src. ahb0 freq = 960M/8 = 120M
 	ccm_reg->ccm_reg->Ahb0_Cfg.dwval		= ccm_reg->ccm_reg_backup.Ahb0_Cfg.dwval		;
 	delay_us(10);
-	save_mem_status(CLK_RESUME_START | 0x7);
+	//save_pm_secure_mem_status(CLK_RESUME_START | 0x7);
 	//config gtbus divide. gtbus clk = 240M /3 = 80M;
 	ccm_reg->ccm_reg->Gtclk_Cfg.dwval		= ccm_reg->ccm_reg_backup.Gtclk_Cfg.dwval		;
 	//delay 10us
@@ -688,7 +713,7 @@ __s32 mem_clk_restore(struct clk_state *ccm_reg)
 	//gtbus clk = 1.2G/3 = 400M
 	ccm_reg->ccm_reg->Pll_Periph2_Cfg.dwval 	= ccm_reg->ccm_reg_backup.Pll_Periph2_Cfg.dwval 	; 
 	delay_us(200);
-	save_mem_status(CLK_RESUME_START | 0x8);
+	//save_pm_secure_mem_status(CLK_RESUME_START | 0x8);
 	
 	ccm_reg->ccm_reg->Ahb1_Cfg.dwval		= (~0x3000000)&(ccm_reg->ccm_reg_backup.Ahb1_Cfg.dwval)	;
 	ccm_reg->ccm_reg->Ahb2_Cfg.dwval		= (~0x3000000)&(ccm_reg->ccm_reg_backup.Ahb2_Cfg.dwval)	;
@@ -705,7 +730,7 @@ __s32 mem_clk_restore(struct clk_state *ccm_reg)
 	ccm_reg->ccm_reg->Clk_Outa.dwval		= ccm_reg->ccm_reg_backup.Clk_Outa.dwval		;
 	ccm_reg->ccm_reg->Clk_Outb.dwval		= ccm_reg->ccm_reg_backup.Clk_Outb.dwval		;
 	//config src.
-	save_mem_status(CLK_RESUME_START | 0x8);
+	//save_pm_secure_mem_status(CLK_RESUME_START | 0x8);
 	ccm_reg->ccm_reg->Cci400_Cfg.dwval		= ccm_reg->ccm_reg_backup.Cci400_Cfg.dwval		; 
 	delay_us(10);
 	ccm_reg->ccm_reg->Ahb1_Cfg.dwval		= ccm_reg->ccm_reg_backup.Ahb1_Cfg.dwval		;
@@ -715,10 +740,10 @@ __s32 mem_clk_restore(struct clk_state *ccm_reg)
 	delay_us(10);
 	ccm_reg->ccm_reg->Apb1_Cfg.dwval		= ccm_reg->ccm_reg_backup.Apb1_Cfg.dwval		;
 	//delay_us(10);
-	save_mem_status(CLK_RESUME_START | 0xa);
+	//save_pm_secure_mem_status(CLK_RESUME_START | 0xa);
 
 	setting_ahb0_para();
-	save_mem_status(CLK_RESUME_START | 0xf);
+	//save_pm_secure_mem_status(CLK_RESUME_START | 0xf);
 	return 0;
 }
 
@@ -804,6 +829,7 @@ __s32 mem_clk_set_pll_factor(struct pll_factor_t *pll_factor)
 	    CmuReg_Pll_C1_Cfg_tmp.bits.pll_factor_n		= pll_factor->FactorN;
 	    CmuReg->Pll_C1_Cfg.dwval = CmuReg_Pll_C1_Cfg_tmp.dwval;
 	}else{
+	    CmuReg_Pll_C0_Cfg_tmp.dwval = CmuReg->Pll_C0_Cfg.dwval;
 	    CmuReg_Pll_C0_Cfg_tmp.bits.pll_postdiv_m	= pll_factor->FactorM;
 	    CmuReg_Pll_C0_Cfg_tmp.bits.pll_out_ext_divp	= pll_factor->FactorP;
 	    CmuReg_Pll_C0_Cfg_tmp.bits.pll_factor_n		= pll_factor->FactorN;

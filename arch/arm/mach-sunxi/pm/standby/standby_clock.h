@@ -21,12 +21,14 @@
 #include "standby_cfg.h"
 #include "standby_i.h"
 
-struct sun4i_clk_div_t {
+struct standby_clk_div_t {
     __u32   cpu_div:4;      /* division of cpu clock, divide core_pll */
-    __u32   axi_div:4;      /* division of axi clock, divide cpu clock*/
-    __u32   ahb_div:4;      /* division of ahb clock, divide axi clock*/
-    __u32   apb_div:4;      /* division of apb clock, divide ahb clock*/
-    __u32   reserved:16;
+    __u32   axi_div:4;      /* division of axi clock, */
+    __u32   ahb_div:4;      /* division of ahb clock, */
+    __u32   ahb_pre_div:4;  /* division of ahb clock, */
+    __u32   apb_div:4;      /* division of apb clock, */
+    __u32   apb_pre_div:4;  /* division of apb clock, */
+    __u32   reserved:8;
 };
 
 #define PLL_CTRL_REG0_OFFSET	(0x40)
@@ -34,9 +36,28 @@ struct sun4i_clk_div_t {
 
 __s32 standby_clk_init(void);
 __s32 standby_clk_exit(void);
-void standby_clk_core2hosc(void);
-void standby_clk_pll1enable(void);
-void standby_clk_ldoenable(void);
+__s32 standby_clk_core2losc(void);
+__s32 standby_clk_core2hosc(void);
+__s32 standby_clk_core2pll(void);
+__s32 standby_clk_plldisable(void);
+__s32 standby_clk_pllenable(void);
+__s32 standby_clk_hoscdisable(void);
+__s32 standby_clk_hoscenable(void);
+__s32 standby_clk_ldodisable(void);
+__s32 standby_clk_ldoenable(void);
+__s32 standby_clk_setdiv(struct standby_clk_div_t  *clk_div);
+__s32 standby_clk_getdiv(struct standby_clk_div_t  *clk_div);
+__s32 standby_clk_set_pll_factor(struct pll_factor_t *pll_factor);
+__s32 standby_clk_get_pll_factor(struct pll_factor_t *pll_factor);
+__s32 standby_clk_apbinit(void);
+__s32 standby_clk_apbexit(void);
+__s32 standby_clk_apb2losc(void);
+__s32 standby_clk_apb2hosc(void);
+__s32 standby_clk_bus_src_backup(void);
+__s32 standby_clk_bus_src_set(void);
+__s32 standby_clk_bus_src_restore(void);
+void standby_clk_dramgating(int onoff);
+
 extern __u32   cpu_ms_loopcnt;
 
 #endif  /* __STANDBY_CLOCK_H__ */

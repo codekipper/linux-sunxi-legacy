@@ -368,38 +368,10 @@ void arisc_fake_power_off(void)
 EXPORT_SYMBOL(arisc_fake_power_off);
 #endif
 
-static int arisc_get_ir_cfg(char *main, char *sub, u32 *val)
+int arisc_config_ir_paras(u32 ir_code, u32 ir_addr)
 {
-	script_item_u script_val;
-	script_item_value_type_e type;
-	type = script_get_item(main, sub, &script_val);
-	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
-		ARISC_ERR("%s-%s config type err or can not be found!", main, sub);
-		return -EINVAL;
-	}
-	*val = script_val.val;
-	ARISC_INF("arisc ir power key code config [%s] [%s] : %d\n", main, sub, *val);
-	return 0;
-}
-
-int arisc_config_ir_paras(void)
-{
-	u32    ir_power_key_code = 0;
-	u32    ir_addr_code      = 0;
-	int    result = 0;
+	int result = 0;
 	struct arisc_message *pmessage;
-
-	/* parse ir power key code */
-	if (arisc_get_ir_cfg("s_cir0", "ir_power_key_code", &ir_power_key_code)) {
-		ARISC_WRN("parse ir power key code fail\n");
-		return -EINVAL;
-	}
-
-	/* parse ir address code */
-	if (arisc_get_ir_cfg("s_cir0", "ir_addr_code", &ir_addr_code)) {
-		ARISC_WRN("parse ir address code fail\n");
-		return -EINVAL;
-	}
 
 	/* allocate a message frame */
 	pmessage = arisc_message_allocate(ARISC_MESSAGE_ATTR_HARDSYN);
@@ -407,6 +379,92 @@ int arisc_config_ir_paras(void)
 		ARISC_WRN("allocate message failed\n");
 		return -ENOMEM;
 	}
+	/* initialize message */
+	pmessage->type       = ARISC_SET_IR_PARAS;
+	pmessage->paras[0]   = ir_code;
+	pmessage->paras[1]   = ir_addr;
+	pmessage->state      = ARISC_MESSAGE_INITIALIZED;
+	pmessage->cb.handler = NULL;
+	pmessage->cb.arg     = NULL;
+
+	ARISC_INF("ir power key:0x%x, addr:0x%x\n", ir_code, ir_addr);
+
+	/* send request message */
+	arisc_hwmsgbox_send_message(pmessage, ARISC_SEND_MSG_TIMEOUT);
+	if (pmessage->result) {
+		ARISC_WRN("config ir power key code [%d] fail\n", pmessage->paras[0]);
+		result = -EINVAL;
+	}
+
+	/* free allocated message */
+	arisc_message_free(pmessage);
+
+	return result;
+}
+EXPORT_SYMBOL(arisc_config_ir_paras);
+
+int arisc_sysconfig_ir_paras(void)
+{
+	u32    ir_power_key_code = 0;
+	u32    ir_addr_code      = 0;
+	int    result = 0;
+	struct arisc_message *pmessage;
+	script_item_u script_val;
+	script_item_value_type_e type;
+#if (defined CONFIG_ARCH_SUN8IW7P1)
+	int i;
+	char key_buf[32] = "ir_power_key_code";
+	char add_buf[32] = "ir_addr_code";
+#endif
+
+	/* allocate a message frame */
+	pmessage = arisc_message_allocate(ARISC_MESSAGE_ATTR_HARDSYN);
+	if (pmessage == NULL) {
+		ARISC_WRN("allocate message failed\n");
+		return -ENOMEM;
+	}
+
+#if (defined CONFIG_ARCH_SUN8IW7P1)
+	for (i = 0; i < ARISC_IR_KEY_SUP_NUM; i++) {
+		sprintf(key_buf + 17, "%d", i);
+		sprintf(add_buf + 12, "%d", i);
+
+		type = script_get_item("s_cir0", key_buf, &script_val);
+		if (SCIRPT_ITEM_VALUE_TYPE_INT != type)
+			break;
+		ir_power_key_code = script_val.val;
+
+		type = script_get_item("s_cir0", add_buf, &script_val);
+		if (SCIRPT_ITEM_VALUE_TYPE_INT != type)
+			break;
+		ir_addr_code = script_val.val;
+
+		pmessage->type	     = ARISC_SET_IR_PARAS;
+		pmessage->paras[0]   = ir_power_key_code;
+		pmessage->paras[1]   = ir_addr_code;
+		pmessage->state      = ARISC_MESSAGE_INITIALIZED;
+		pmessage->cb.handler = NULL;
+		pmessage->cb.arg     = NULL;
+		ARISC_INF("ir power key:0x%x, addr:0x%x\n", ir_power_key_code, ir_addr_code);
+
+		arisc_hwmsgbox_send_message(pmessage, ARISC_SEND_MSG_TIMEOUT);
+	}
+#else
+	/* parse ir power key code */
+	type = script_get_item("s_cir0", "ir_power_key_code0", &script_val);
+	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+		ARISC_WRN("parse ir power key code fail\n");
+		return -EINVAL;
+	}
+	ir_power_key_code = script_val.val;
+
+	/* parse ir address code */
+	type = script_get_item("s_cir0", "ir_addr_code0", &script_val);
+	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+		ARISC_WRN("parse ir address code fail\n");
+		return -EINVAL;
+	}
+	ir_addr_code = script_val.val;
 
 	/* initialize message */
 	pmessage->type       = ARISC_SET_IR_PARAS;
@@ -420,6 +478,7 @@ int arisc_config_ir_paras(void)
 
 	/* send request message */
 	arisc_hwmsgbox_send_message(pmessage, ARISC_SEND_MSG_TIMEOUT);
+#endif
 
 	//check config fail or not
 	if (pmessage->result) {

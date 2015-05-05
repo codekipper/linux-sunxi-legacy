@@ -492,8 +492,8 @@ int hidraw_connect(struct hid_device *hid)
 		kfree(dev);
 		goto out;
 	}
-
-	mutex_unlock(&minors_lock);
+//YUNOS END for TVSENSOR on OTT
+//	mutex_unlock(&minors_lock);
 	init_waitqueue_head(&dev->wait);
 	INIT_LIST_HEAD(&dev->list);
 
@@ -503,6 +503,8 @@ int hidraw_connect(struct hid_device *hid)
 	dev->exist = 1;
 	hid->hidraw = dev;
 
+	mutex_unlock(&minors_lock);
+//YUNOS END for TVSENSOR on OTT
 out:
 	return result;
 

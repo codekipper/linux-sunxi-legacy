@@ -15,6 +15,7 @@
 #include "linux/power/axp_depend.h"
 #include <linux/power/scenelock.h>
 
+#if (defined(CONFIG_ARCH_SUN8IW8P1) || defined(CONFIG_ARCH_SUN8IW6P1)) && defined(CONFIG_AW_AXP) 
 unsigned int parse_pwr_dm_map(char *s, unsigned int size, unsigned int bitmap)
 {
     int i = 0;
@@ -53,4 +54,11 @@ unsigned int parse_pwr_dm_map(char *s, unsigned int size, unsigned int bitmap)
     return (s - start);
 
 }
+#else
+unsigned int parse_pwr_dm_map(char *s, unsigned int size, unsigned int bitmap)
+{
+    return -1;
+}
+#endif
+
 

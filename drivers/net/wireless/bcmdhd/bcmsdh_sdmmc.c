@@ -371,7 +371,8 @@ sdioh_interrupt_deregister(sdioh_info_t *sd)
 	sd->intr_handler = NULL;
 	sd->intr_handler_arg = NULL;
 #elif defined(HW_OOB)
-	sdioh_disable_func_intr();
+	if (dhd_download_fw_on_driverload)
+		sdioh_disable_func_intr();
 #endif /* !defined(OOB_INTR_ONLY) */
 	return SDIOH_API_RC_SUCCESS;
 }
@@ -777,7 +778,7 @@ sdioh_cis_read(sdioh_info_t *sd, uint func, uint8 *cisd, uint32 length)
 		return SDIOH_API_RC_FAIL;
 	}
 
-	sd_err(("%s: func_cis_ptr[%d]=0x%04x\n", __FUNCTION__, func, sd->func_cis_ptr[func]));
+	sd_trace(("%s: func_cis_ptr[%d]=0x%04x\n", __FUNCTION__, func, sd->func_cis_ptr[func]));
 
 	for (count = 0; count < length; count++) {
 		offset =  sd->func_cis_ptr[func] + count;
@@ -887,7 +888,7 @@ sdioh_request_byte(sdioh_info_t *sd, uint rw, uint func, uint regaddr, uint8 *by
 	//AW judge sdio read write timeout, 1s
 	ret = sunxi_mci_check_r1_ready(gInstance->func[func]->card->host, 1000);
 	if (ret != 0)
-		printk(("%s data timeout.\n", __FUNCTION__));	
+		printk("%s data timeout.\n", __FUNCTION__);
 
 	if (err_ret) {
 		if ((regaddr == 0x1001F) && (err_ret == -110)) {
@@ -945,7 +946,7 @@ sdioh_request_word(sdioh_info_t *sd, uint cmd_type, uint rw, uint func, uint add
 	//AW judge sdio read write timeout, 1s
 	ret = sunxi_mci_check_r1_ready(gInstance->func[func]->card->host, 1000);
 	if (ret != 0)
-		printk(("%s data timeout.\n", __FUNCTION__));
+		printk("%s data timeout.\n", __FUNCTION__);
 
 	/* Release host controller */
 	sdio_release_host(gInstance->func[func]);
@@ -967,7 +968,7 @@ sdioh_request_word(sdioh_info_t *sd, uint cmd_type, uint rw, uint func, uint add
 				//AW judge sdio read write timeout, 1s
 				ret = sunxi_mci_check_r1_ready(gInstance->func[func]->card->host, 1000);
 				if (ret != 0)
-					printk("%s data timeout, SDIO_CCCR_IOABORT.\n", __FUNCTION__);	
+					printk("%s data timeout, SDIO_CCCR_IOABORT.\n", __FUNCTION__);
 					
 				sdio_release_host(gInstance->func[0]);
 			}
@@ -1299,7 +1300,7 @@ txglomfail:
 			//AW judge sdio read write timeout, 1s
 			ret = sunxi_mci_check_r1_ready(gInstance->func[func]->card->host, 1000);
 			if (ret != 0)
-				printk(("%s data timeout.\n", __FUNCTION__));
+				printk("%s data timeout.\n", __FUNCTION__);
 			
 			if (err_ret)
 				sd_err(("%s: %s FAILED %p[%d], addr=0x%05x, pkt_len=%d, ERR=%d\n",

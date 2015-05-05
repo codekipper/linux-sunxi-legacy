@@ -187,15 +187,74 @@ dhd_customer_gpio_wlan_ctrl(int onoff)
 }
 
 #ifdef GET_CUSTOM_MAC_ENABLE
+extern char *saved_command_line;
+#define MAC_KEY_VALUE "wifi_mac"
+s32 get_para_from_cmdline(const char *cmdline, const char *name, char *value)
+{
+	char *value_p = value;
+
+	if(!cmdline || !name || !value) {
+		return -1;
+	}
+
+	for(; *cmdline != 0;) {
+		if(*cmdline++ == ' ') {
+			if(0 == strncmp(cmdline, name, strlen(name))) {
+				cmdline += strlen(name);
+				if(*cmdline++ != '=') {
+					continue;
+				}
+				while(*cmdline != 0 && *cmdline != ' ') {
+					*value_p++ = *cmdline++;
+				}
+				return value_p - value;
+			}
+		}
+	}
+
+	return 0;
+}
+static u8 key_char2num(u8 ch)
+{
+	if((ch>='0')&&(ch<='9'))
+		return ch - '0';
+	else if ((ch>='a')&&(ch<='f'))
+		return ch - 'a' + 10;
+	else if ((ch>='A')&&(ch<='F'))
+		return ch - 'A' + 10;
+	else
+		return 0xff;
+}
+u8 key_2char2num(u8 hch, u8 lch)
+{
+	return ((key_char2num(hch) << 4) | key_char2num(lch));
+}
 /* Function to get custom MAC address */
 int
 dhd_custom_get_mac_address(unsigned char *buf)
 {
 	int ret = 0;
+	char mac_str[18] = {0};
+	u8 mac[ETH_ALEN];
+	struct ether_addr mac_addr;
+	int jj,kk;
 
 	WL_TRACE(("%s Enter\n", __FUNCTION__));
 	if (!buf)
 		return -EINVAL;
+
+	get_para_from_cmdline(saved_command_line, MAC_KEY_VALUE, mac_str);
+	if(mac_str != NULL && is_valid_ether_addr(mac_str)) {
+		printk(KERN_ERR "mac_str=%s\n",mac_str);
+		for( jj = 0, kk = 0; jj < ETH_ALEN; jj++, kk += 3 ) {
+			mac[jj] = key_2char2num(mac_str[kk], mac_str[kk+ 1]);
+		}
+		memcpy(mac_addr.octet, mac, ETHER_ADDR_LEN);
+		bcopy((char *)&mac_addr, buf, sizeof(struct ether_addr));
+		ret = 0;
+	} else {
+		ret = -1;
+	}
 
 	/* Customer access to MAC address stored outside of DHD driver */
 #if defined(CUSTOMER_HW2) && (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35))

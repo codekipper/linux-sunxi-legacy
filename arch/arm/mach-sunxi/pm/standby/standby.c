@@ -49,11 +49,26 @@ int i_tlb_miss_end	= 0;
 int i_cache_miss_end	= 0;
 #endif
 
+static void standby(void);
+
+#ifdef CONFIG_SUNXI_ARISC
+static void arisc_standby(void);
+#else
+unsigned int dram_suspend_flag = 0;
+static __u8 dram_traning_area_back[DRAM_TRANING_SIZE];
+static void cpux_standby(void);
+static struct pll_factor_t orig_pll;
+static struct pll_factor_t local_pll;
+static struct standby_clk_div_t  clk_div;
+static struct standby_clk_div_t  tmp_clk_div;
+
+#endif
 
 /* parameter for standby, it will be transfered from sys_pwm module */
 struct aw_pm_info  pm_info;
+unsigned int power_regu_tree[VCC_MAX_INDEX];
 struct normal_standby_para normal_standby_para_info;
-
+extended_standby_t extended_standby_para_info;
 /*
 *********************************************************************************************************
 *                                   STANDBY MAIN PROCESS ENTRY
@@ -86,9 +101,11 @@ int standby_main(struct aw_pm_info *arg)
 	/* save stack pointer registger, switch stack to sram */
 	sp_backup = save_sp();
 
-	save_mem_status(RESUME0_START | 0X01);
+	save_mem_status(RESUME0_START | 0X02);
+
 	/* copy standby parameter from dram */
 	standby_memcpy(&pm_info, arg, sizeof(pm_info));
+	standby_memcpy(&power_regu_tree, arg->pmu_arg.soc_power_tree, sizeof(power_regu_tree));
 	
 	/* preload tlb for standby */
 	mem_preload_tlb();
@@ -97,113 +114,58 @@ int standby_main(struct aw_pm_info *arg)
 	/* init module before dram enter selfrefresh */
 	/* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
 	/*init perf counter for timing.*/
-	mem_clk_init(1);
 	init_perfcounters(1, 0); //need double check..
-	
-	save_mem_status(RESUME0_START | 0X02);
-	/* initialise standby modules */
-	standby_arisc_init();
 	standby_clk_init();
-	mem_tmr_init();
+	mem_clk_init(1);
+#ifdef CONFIG_SUNXI_ARISC
+	standby_arisc_init();
+#endif
+
 	save_mem_status(RESUME0_START | 0X03);
 
 	if(unlikely(pm_info.standby_para.debug_mask&PM_STANDBY_PRINT_STANDBY)){
 		//don't need init serial ,depend kernel?
-		serial_init();
-		save_mem_status(RESUME0_START | 0X04);
+		serial_init_manager();
 		printk("normal standby wakeup src config = 0x%x. \n", pm_info.standby_para.event);
 		save_mem_status(RESUME0_START | 0X05);
 	}
-	save_mem_status(RESUME0_START | 0X06);
+
+	/* copy extended standby info */
+	if(NULL !=  pm_info.standby_para.pextended_standby){
+	    printk("use extended_standby cfg.\n");
+	    standby_memcpy(&extended_standby_para_info, (void *)(DRAM_EXTENDED_STANDBY_INFO_VA), sizeof(extended_standby_para_info));
+	    save_mem_status(RESUME0_START | 0X06);
+	}
+	save_mem_status(RESUME0_START | 0X07);
 
 	/* init some system wake source */
-	if(pm_info.standby_para.event & CPU0_WAKEUP_MSGBOX){
-		if(unlikely(pm_info.standby_para.debug_mask&PM_STANDBY_PRINT_STANDBY)){
-			printk("enable CPU0_WAKEUP_MSGBOX. \n");
-		}
-		mem_enable_int(INT_SOURCE_MSG_BOX);
-	}
-	if(pm_info.standby_para.event & CPU0_WAKEUP_KEY){
-		standby_key_init();
-		mem_enable_int(INT_SOURCE_LRADC);
-	}
 
 	/* process standby */
 	if(unlikely(pm_info.standby_para.debug_mask&PM_STANDBY_PRINT_CACHE_TLB_MISS)){
-		cache_count_init();
+	    cache_count_init();
 	}
 
-	save_mem_status(RESUME0_START | 0X05);
-	//busy_waiting();
+	save_mem_status(RESUME0_START | 0X08);
 	standby();
 	
-	save_mem_status(RESUME1_START | 0x03);
-	/* check system wakeup event */
-	pm_info.standby_para.event = 0;
-	//actually, msg_box int will be clear by arisc-driver.
-	pm_info.standby_para.event |= mem_query_int(INT_SOURCE_MSG_BOX)? 0:CPU0_WAKEUP_MSGBOX;
-	pm_info.standby_para.event |= mem_query_int(INT_SOURCE_LRADC)? 0:CPU0_WAKEUP_KEY;
-
-	//restore intc config.
-	if(pm_info.standby_para.event & CPU0_WAKEUP_KEY){
-		standby_key_exit();
-	}
-
-	/*check completion status: only after restore completion, access dram is allowed. */
-	save_mem_status(RESUME1_START | 0x04);
-	while(standby_arisc_check_restore_status()){
-		if(unlikely(pm_info.standby_para.debug_mask&PM_STANDBY_PRINT_STANDBY)){
-			printk("0xf1c20050 value: 0x%x. \n", *((volatile unsigned int *)0xf1c20050));
-			printk("0xf1c20000 value: 0x%x. \n", *((volatile unsigned int *)0xf1c20000));
-		}
-		;
-	}
 	
-	if(unlikely(pm_info.standby_para.debug_mask&PM_STANDBY_PRINT_CACHE_TLB_MISS)){
-		cache_count_get();
-		if(d_cache_miss_end || d_tlb_miss_end || i_tlb_miss_end || i_cache_miss_end){
-		printk("=============================NOTICE====================================. \n");
-		cache_count_output();
-		}else{
-			printk("no miss. \n");
-			//cache_count_output();
-		}
-	}
-	
-	save_mem_status(RESUME1_START | 0x05);	
-	/* disable watch-dog */
-	mem_tmr_disable_watchdog();
-	if(unlikely(pm_info.standby_para.debug_mask&PM_STANDBY_PRINT_STANDBY)){
-		printk("after mem_tmr_disable_watchdog. \n");
-	}
-
-	/* exit standby module */
-	mem_tmr_exit();
-	standby_clk_exit();
-	standby_arisc_exit();
-	
-	save_mem_status(RESUME1_START | 0x06);
-	if(unlikely(pm_info.standby_para.debug_mask&PM_STANDBY_PRINT_STANDBY)){
-		printk("after standby_arisc_exit. \n");
-	}
 	/* restore stack pointer register, switch stack back to dram */
 	restore_sp(sp_backup);
 
 	if(unlikely(pm_info.standby_para.debug_mask&PM_STANDBY_PRINT_STANDBY)){
-		printk("after restore_sp. \n");
-	}
-
-	if(unlikely(pm_info.standby_para.debug_mask&PM_STANDBY_PRINT_STANDBY)){
 		//restore serial clk & gpio config.
-		serial_exit();
+		serial_exit_manager();
 	}
+#ifdef CONFIG_SUNXI_ARISC
+	standby_arisc_exit();
+#endif
 
 	/* report which wake source wakeup system */
 	arg->standby_para.event = pm_info.standby_para.event;
 	arg->standby_para.axp_event = pm_info.standby_para.axp_event;
 
 	//enable_cache();
-	save_mem_status(RESUME1_START | 0x07);
+	save_mem_status(RESUME0_START | 0x0c);
 
 	/* FIXME: seems the dram para have some err.
 	 * 1. the dram crc, in normal standby case, may have crc err.
@@ -233,6 +195,209 @@ int standby_main(struct aw_pm_info *arg)
 	return 0;
 }
 
+#ifndef CONFIG_SUNXI_ARISC
+/*
+*********************************************************************************************************
+*                                     SYSTEM PWM ENTER STANDBY MODE
+*
+* Description: cpux enter standby mode.
+*
+* Arguments  : none
+*
+* Returns    : none;
+*********************************************************************************************************
+*/
+static void cpux_standby(void)
+{
+    unsigned int dram_crc_bef  = 0;
+    unsigned int dram_crc_aft  = 0;
+
+    if((NULL !=  pm_info.standby_para.pextended_standby)){
+	standby_set_dram_crc_paras(extended_standby_para_info.soc_dram_state.crc_en, \
+				    extended_standby_para_info.soc_dram_state.crc_start, \
+				    extended_standby_para_info.soc_dram_state.crc_len);
+	dram_crc_bef = standby_dram_crc();
+    }
+
+    if((NULL !=  pm_info.standby_para.pextended_standby) && (0 == extended_standby_para_info.soc_dram_state.selfresh_flag)){
+	//not enter selfresh according user define.
+	printk("selfresh flag = 0. \n");
+    }else{
+	/*dram crc*/
+
+	/* backup dram traning area */
+	standby_memcpy((char *)dram_traning_area_back, (char *)DRAM_BASE_ADDR, DRAM_TRANING_SIZE);
+
+	/* dram enter self-refresh flag */
+	dram_suspend_flag = 1;
+	dram_power_save_process();
+	//mctl_self_refresh_entry();
+
+	/* gating off dram clock */
+	//standby_clk_dramgating(0);
+    }
+
+    /* backup cpu freq */
+    standby_clk_get_pll_factor(&orig_pll);
+    /* backup bus src */
+    standby_clk_bus_src_backup();
+
+    /*lower freq from 1008M to 408M*/
+    local_pll.FactorN = 16;
+    local_pll.FactorK = 0;
+    local_pll.FactorM = 0;
+    local_pll.FactorP = 0;
+    standby_clk_set_pll_factor(&local_pll);
+    change_runtime_env();
+    delay_ms(10);
+
+    /* switch cpu clock to HOSC, and disable pll */
+    standby_clk_core2hosc();
+    change_runtime_env();
+    delay_us(1);
+
+    if (extended_standby_para_info.pmu_id)
+    {
+        int i = 0;
+	standby_twi_init(pm_info.pmu_arg.twi_port);
+        for (i=0; i<VCC_MAX_INDEX; i++) {
+            if ((0 < extended_standby_para_info.soc_pwr_dm_state.volt[i])&&
+                (4200 > extended_standby_para_info.soc_pwr_dm_state.volt[i])) {
+                standby_set_power(extended_standby_para_info.pmu_id, i,
+                    &power_regu_tree, extended_standby_para_info.soc_pwr_dm_state.volt[i]);
+            }
+        }
+    }
+
+    /* change ahb src to axi? losc?*/
+    standby_clk_bus_src_set();
+
+    standby_clk_getdiv(&clk_div);
+    /* set clock division cpu:axi:ahb:apb = 2:2:2:1 */
+    tmp_clk_div.axi_div = 0;
+    tmp_clk_div.ahb_div = 0;
+    tmp_clk_div.ahb_pre_div = 0;
+    tmp_clk_div.apb_div = 0;
+    tmp_clk_div.apb_pre_div = 0;
+    standby_clk_setdiv(&tmp_clk_div);
+
+    /* swtich apb2 to losc */
+    standby_clk_apb2losc();
+    change_runtime_env();
+	//delay_ms(1);
+    standby_clk_plldisable();
+
+    /* switch cpu to 32k */
+    standby_clk_core2losc();
+#if(ALLOW_DISABLE_HOSC)
+    if( 1 == dram_suspend_flag){
+	// disable HOSC, and disable LDO
+	standby_clk_hoscdisable();
+	standby_clk_ldodisable();
+    }
+#endif
+
+    /* cpu enter sleep, wait wakeup by interrupt */
+    asm("WFI");
+
+#if(ALLOW_DISABLE_HOSC)
+    if( 1 == dram_suspend_flag){
+	/* enable LDO, enable HOSC */
+	standby_clk_ldoenable();
+	/* delay 1ms for power be stable */
+	//3ms
+	standby_delay_cycle(1);
+	standby_clk_hoscenable();
+	//3ms
+	standby_delay_cycle(1);
+    }
+#endif
+
+    /* switch clock to hosc */
+    standby_clk_core2hosc();
+
+    /* swtich apb2 to hosc */
+    standby_clk_apb2hosc();
+
+    /* restore clock division */
+    standby_clk_setdiv(&clk_div);
+
+    /* check system wakeup event */
+    pm_info.standby_para.event = 0;
+    /* check system wakeup event */
+    pm_info.standby_para.event |= mem_query_int(INT_SOURCE_EXTNMI)? 0:CPU0_WAKEUP_EXINT;
+    pm_info.standby_para.event |= mem_query_int(INT_SOURCE_USBOTG)? 0:CPU0_WAKEUP_USB;
+    pm_info.standby_para.event |= mem_query_int(INT_SOURCE_USBEHCI0)? 0:CPU0_WAKEUP_USB;
+    pm_info.standby_para.event |= mem_query_int(INT_SOURCE_USBEHCI1)? 0:CPU0_WAKEUP_USB;
+    pm_info.standby_para.event |= mem_query_int(INT_SOURCE_USBEHCI2)? 0:CPU0_WAKEUP_USB;
+    pm_info.standby_para.event |= mem_query_int(INT_SOURCE_USBOHCI0)? 0:CPU0_WAKEUP_USB;
+    pm_info.standby_para.event |= mem_query_int(INT_SOURCE_USBOHCI1)? 0:CPU0_WAKEUP_USB;
+    pm_info.standby_para.event |= mem_query_int(INT_SOURCE_USBOHCI2)? 0:CPU0_WAKEUP_USB;
+    pm_info.standby_para.event |= mem_query_int(INT_SOURCE_LRADC)? 0:CPU0_WAKEUP_KEY;
+    pm_info.standby_para.event |= mem_query_int(INT_SOURCE_IR0)? 0:CPU0_WAKEUP_IR;
+    pm_info.standby_para.event |= mem_query_int(INT_SOURCE_ALARM)? 0:CPU0_WAKEUP_ALARM;
+    pm_info.standby_para.event |= mem_query_int(INT_SOURCE_TIMER0)? 0:CPU0_WAKEUP_TIMEOUT;
+
+    /* enable pll */
+    standby_clk_pllenable();
+    change_runtime_env();
+    delay_ms(10);
+
+    if (extended_standby_para_info.pmu_id)
+    {
+        /* restore voltage for exit standby */
+        standby_recovery_power(extended_standby_para_info.pmu_id);
+        standby_twi_exit();
+    }
+
+    standby_clk_bus_src_restore();
+    /* switch cpu clock to core pll */
+    standby_clk_core2pll();
+    change_runtime_env();
+    delay_ms(10);
+
+    /*restore freq from 384 to 1008M*/
+    standby_clk_set_pll_factor(&orig_pll);
+    change_runtime_env();
+    delay_ms(5);
+
+
+    if( 1 == dram_suspend_flag){
+	/* gating on dram clock */
+	//standby_clk_dramgating(1);
+	/* enable watch-dog to preserve dram training failed */
+	//standby_tmr_enable_watchdog();
+	/* restore dram */
+	dram_power_up_process(0);
+	//mctl_self_refresh_exit();
+	//init_DRAM(&pm_info.dram_para);
+
+	/* disable watch-dog    */
+	//standby_tmr_disable_watchdog();
+	dram_suspend_flag = 0;
+	/* restore dram traning area */
+	standby_memcpy((char *)DRAM_BASE_ADDR, (char *)dram_traning_area_back, DRAM_TRANING_SIZE);
+    }
+
+    if((NULL !=  pm_info.standby_para.pextended_standby)){
+	dram_crc_aft = standby_dram_crc();
+	if(dram_crc_aft != dram_crc_bef){
+	    save_mem_status(RESUME0_START | 0X0b);
+	    printk("ERR: (dram_crc_bef = 0x%x) !=  (dram_crc_aft = 0x%x) \n", \
+		    dram_crc_bef, dram_crc_aft);
+	    while(1){};
+	}else{
+	    printk("OK: (dram_crc_bef = 0x%x) ==  (dram_crc_aft = 0x%x) \n", \
+		    dram_crc_bef, dram_crc_aft);
+
+	}
+    }
+
+    return;
+}
+#endif
+
+#ifdef CONFIG_SUNXI_ARISC
 /*
 *********************************************************************************************************
 *                                     SYSTEM PWM ENTER STANDBY MODE
@@ -244,7 +409,7 @@ int standby_main(struct aw_pm_info *arg)
 * Returns    : none;
 *********************************************************************************************************
 */
-static void standby(void)
+static void arisc_standby(void)
 {
 	/*backup clk freq and voltage*/
 	backup_ccu();
@@ -272,6 +437,41 @@ static void standby(void)
 	/* notify for cpus to: restore cpus freq and volt, restore dram */
 	standby_arisc_notify_restore(STANDBY_ARISC_ASYNC);	
 
+	save_mem_status(RESUME1_START | 0x03);
+	/* check system wakeup event */
+	pm_info.standby_para.event = 0;
+	//actually, msg_box int will be clear by arisc-driver.
+	pm_info.standby_para.event |= mem_query_int(INT_SOURCE_MSG_BOX)? 0:CPU0_WAKEUP_MSGBOX;
+	pm_info.standby_para.event |= mem_query_int(INT_SOURCE_LRADC)? 0:CPU0_WAKEUP_KEY;
+
+	/*check completion status: only after restore completion, access dram is allowed. */
+	save_mem_status(RESUME1_START | 0x04);
+	while(standby_arisc_check_restore_status()){
+		if(unlikely(pm_info.standby_para.debug_mask&PM_STANDBY_PRINT_STANDBY)){
+			printk("0xf1c20050 value: 0x%x. \n", *((volatile unsigned int *)0xf1c20050));
+			printk("0xf1c20000 value: 0x%x. \n", *((volatile unsigned int *)0xf1c20000));
+		}
+		;
+	}
+
+	if(unlikely(pm_info.standby_para.debug_mask&PM_STANDBY_PRINT_CACHE_TLB_MISS)){
+		cache_count_get();
+		if(d_cache_miss_end || d_tlb_miss_end || i_tlb_miss_end || i_cache_miss_end){
+		printk("=============================NOTICE====================================. \n");
+		cache_count_output();
+		}else{
+			printk("no miss. \n");
+			//cache_count_output();
+		}
+	}
+
+	save_mem_status(RESUME1_START | 0x05);
+	/* disable watch-dog */
+	mem_tmr_disable_watchdog();
+	if(unlikely(pm_info.standby_para.debug_mask&PM_STANDBY_PRINT_STANDBY)){
+		printk("after mem_tmr_disable_watchdog. \n");
+	}
+
 	return;
 }
 
@@ -296,6 +496,7 @@ static void restore_ccu(void)
 	
 		return;
 }
+#endif
 
 /*
 *********************************************************************************************************
@@ -405,7 +606,26 @@ static void cache_count_output(void)
 {
 	return;
 }
-
-
 #endif
+
+
+/*
+*********************************************************************************************************
+*                                     SYSTEM PWM ENTER STANDBY MODE
+*
+* Description: cpux enter standby mode.
+*
+* Arguments  : none
+*
+* Returns    : none;
+*********************************************************************************************************
+*/
+static void standby(void)
+{
+#ifdef CONFIG_SUNXI_ARISC
+    arisc_standby();
+#else
+    cpux_standby();
+#endif
+}
 

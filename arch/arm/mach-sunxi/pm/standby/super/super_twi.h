@@ -19,8 +19,6 @@
 #ifndef __SUPER_TWI_H__
 #define __SUPER_TWI_H__
 
-#include "super_cfg.h"
-
 
 
 #endif  /* __SUPER_TWI_H__ */

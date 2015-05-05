@@ -68,7 +68,7 @@
 	.globl cpu_brom_addr
 	.text
 	.arm
-/*********************************the begin of initializing system********************************/
+/**********************the begin of initializing system**********************/
 	.globl _start
 _start:
 	mrs r0, cpsr
@@ -120,18 +120,18 @@ _start:
 A7f:
 #endif
 
-#if defined(CONFIG_ARCH_SUN8IW3P1) || defined(CONFIG_ARCH_SUN8IW5P1)
+#if defined(CONFIG_ARCH_SUN8IW3P1) || defined(CONFIG_ARCH_SUN8IW5P1) || defined(CONFIG_ARCH_SUN8IW7P1)
 	ldr r0, =0x01c00024
 	ldr r1, [r0]
-	/* 1 -> bit15 */
+	/* 1 -> bit15 to enable write */
 	orr r1, #0x8000
 	str r1, [r0]
 	/* read version */
 	ldr r1, [r0]
 	lsr r2, r1, #16
-	ldr r3, =0x1661
+	ldr r3, =0x1680
 	cmp r2, r3
-	beq config_61
+	beq config_80
 
 	/* setting to 0x22223a22 */
 config_50:
@@ -142,7 +142,7 @@ config_50:
 	b   config_end
 
 	/* setting to 0x222222e2 */
-config_61:
+config_80:
 	ldr r0, =0x01c00044
 	ldr r1,[r0]
 	orr r1,#0xc0
@@ -150,6 +150,7 @@ config_61:
 
 config_end:
 #endif
+
 	/* set SP for SVC mode, SP will be inited in cpu_resume */
 	//mrc p15, 0, r0, c0, c0, 5
 	//ubfx r0, r0, #0, #2		@ cpu id

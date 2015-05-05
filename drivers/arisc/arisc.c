@@ -24,6 +24,8 @@
 #include <mach/sunxi-chip.h>
 #include <asm/firmware.h>
 #include <linux/dma-mapping.h>
+#include <linux/reboot.h>
+#include <asm/cacheflush.h>
 
 /* local functions */
 static int     arisc_wait_ready(unsigned int timeout);
@@ -505,7 +507,6 @@ static ssize_t arisc_freq_show(struct device *dev,
 static ssize_t arisc_freq_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t size)
 {
-#ifndef CONFIG_ARCH_SUN8IW7P1
 	u32 freq = 0;
 	u32 pll  = 0;
 	u32 mode = 0;
@@ -535,7 +536,6 @@ static ssize_t arisc_freq_store(struct device *dev,
 	} else {
 		ARISC_LOG("pll%u freq set to %u success\n", pll, freq);
 	}
-#endif
 	return size;
 }
 
@@ -1220,7 +1220,6 @@ static int  sunxi_arisc_pin_cfg(struct platform_device *pdev)
 			pin_config_set (SUNXI_PINCTRL, pin_name, config);
 		}
 	}
-
 	/*
 	 * request arisc resources:
 	 * uart gpio...
@@ -1361,6 +1360,11 @@ static s32 sunxi_arisc_para_init(struct arisc_para *para)
 	else
 		para->uart_pin_used = 0;
 
+#ifdef CONFIG_AW_AXP
+	/* get power regulator tree */
+	get_pwr_regu_tree(para->power_regu_tree);
+#endif
+
 	return 0;
 }
 
@@ -1424,6 +1428,7 @@ u32 sunxi_load_arisc(void *image, u32 image_size, void *para, u32 para_size)
 		dest = (void *)(arisc_sram_a2_vbase + ARISC_PARA_ADDR_OFFSET);
 		memcpy(dest, (void *)para, para_size);
 		ARISC_INF("setup arisc para finish\n");
+		flush_cache_all();
 		
 		/* relese arisc reset */
 		sunxi_deassert_arisc();
@@ -1471,16 +1476,27 @@ static int  sunxi_arisc_probe(struct platform_device *pdev)
 	binary_len = (int)(&arisc_binary_end) - (int)(&arisc_binary_start);
 #endif
 
-#if (defined CONFIG_ARCH_SUN8IW7P1)
+#if (defined CONFIG_ARCH_SUN8IW6P1)
+	if ((int)(&arisc_binary_end) - (int)(&arisc_binary_start) - 0x018000 > ARISC_RESERVE_MEMSIZE)
+		ARISC_ERR("reserve dram space littler than cpus code!");
+	memcpy((void *)phys_to_virt(ARISC_RESERVE_MEMBASE), \
+	       (void *)(((unsigned char *)&arisc_binary_start) + 0x018000), \
+	       (int)(&arisc_binary_end) - (int)(&arisc_binary_start) - 0x018000);
+	ARISC_INF("cp arisc code1 [addr = %p, len = %x] to dram:%p finished\n",
+	          (void *)(((unsigned char *)&arisc_binary_start) + 0x018000), \
+	          (int)(&arisc_binary_end) - (int)(&arisc_binary_start) - 0x018000, \
+	          (void *)ARISC_RESERVE_MEMBASE);
+#elif (defined CONFIG_ARCH_SUN8IW7P1)
+	memset((void *)phys_to_virt(SUPER_STANDBY_MEM_BASE), 0, SUPER_STANDBY_MEM_SIZE);
 	if ((int)(&arisc_binary_end) - (int)(&arisc_binary_start) - binary_len > SUPER_STANDBY_MEM_SIZE)
 		ARISC_ERR("reserve dram space littler than cpus code!");
 	memcpy((void *)phys_to_virt(SUPER_STANDBY_MEM_BASE), \
 	       (void *)(((unsigned char *)&arisc_binary_start) + binary_len), \
 	       (int)(&arisc_binary_end) - (int)(&arisc_binary_start) - binary_len);
-	ARISC_INF("move arisc binary data1 [addr = %p, len = %x] to dram:%p finished\n",
-			 (void *)(((unsigned char *)&arisc_binary_start) + binary_len), \
-			 (int)(&arisc_binary_end) - (int)(&arisc_binary_start) - binary_len, \
-			 (void *)SUPER_STANDBY_MEM_BASE);
+	ARISC_INF("cp arisc code1 [addr = %p, len = %x] to dram:%p finished\n",
+	          (void *)(((unsigned char *)&arisc_binary_start) + binary_len), \
+	          (int)(&arisc_binary_end) - (int)(&arisc_binary_start) - binary_len, \
+	          (void *)SUPER_STANDBY_MEM_BASE);
 #endif
 	/* initialize hwspinlock */
 	ARISC_INF("hwspinlock initialize\n");
@@ -1491,6 +1507,7 @@ static int  sunxi_arisc_probe(struct platform_device *pdev)
 	arisc_hwmsgbox_init();
 	
 	/* setup arisc parameter */
+	memset(&para, 0, sizeof(struct arisc_para));
 	sunxi_arisc_para_init(&para);
 	sunxi_arisc_setup_para(&para);
 
@@ -1513,9 +1530,8 @@ static int  sunxi_arisc_probe(struct platform_device *pdev)
 	}
 	
 	/* initialize message manager */
-	ARISC_INF("message manager initialize\n");
+	ARISC_INF("message manager initialize start:%x, end:%x\n", message_addr, message_size);
 	arisc_message_manager_init((void *)message_addr, message_size);
-
 
 	/* load arisc */
 	sunxi_load_arisc((void *)(&arisc_binary_start), binary_len, 
@@ -1539,17 +1555,15 @@ static int  sunxi_arisc_probe(struct platform_device *pdev)
 	 */
 	sunxi_chip_id_init();
 	
-#ifndef CONFIG_ARCH_SUN8IW7P1
 	/* config dvfs v-f table */
 	if (arisc_dvfs_cfg_vf_table()) {
 		ARISC_WRN("config dvfs v-f table failed\n");
 	}
-#endif
 
 #if (defined CONFIG_ARCH_SUN8IW1P1) || (defined CONFIG_ARCH_SUN8IW6P1) || \
-    (defined CONFIG_ARCH_SUN9IW1P1)
+    (defined CONFIG_ARCH_SUN8IW7P1) || (defined CONFIG_ARCH_SUN9IW1P1)
 	/* config ir config paras */
-	if (arisc_config_ir_paras()) {
+	if (arisc_sysconfig_ir_paras()) {
 		ARISC_WRN("config ir paras failed\n");
 	}
 #endif
@@ -1562,12 +1576,10 @@ static int  sunxi_arisc_probe(struct platform_device *pdev)
 	}
 #endif
 
-#ifndef CONFIG_ARCH_SUN8IW7P1
 	/* config dram config paras */
 	if (arisc_config_dram_paras()) {
 		ARISC_WRN("config dram paras failed\n");
 	}
-#endif
 
 #if (defined CONFIG_ARCH_SUN8IW5P1) || (defined CONFIG_ARCH_SUN8IW6P1) || (defined CONFIG_ARCH_SUN9IW1P1)
 	/* config standby power paras */
@@ -1577,6 +1589,13 @@ static int  sunxi_arisc_probe(struct platform_device *pdev)
 #endif
 	atomic_set(&arisc_suspend_flag, 0);
 
+	/* PM hookup */
+#if (defined CONFIG_ARCH_SUN8IW7P1)
+	if(!pm_power_off)
+		pm_power_off = arisc_power_off;
+	else
+		ARISC_WRN("pm_power_off aleardy been registered!\n");
+#endif
 	/* arisc initialize succeeded */
 	ARISC_LOG("sunxi-arisc driver v%s startup succeeded\n", DRV_VERSION);
 

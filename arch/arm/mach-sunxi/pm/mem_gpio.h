@@ -26,7 +26,7 @@ struct gpio_state{
 __s32 mem_gpio_save(struct gpio_state *pgpio_state);
 __s32 mem_gpio_restore(struct gpio_state *pgpio_state);
 
-#if defined(CONFIG_ARCH_SUN9IW1P1) || defined(CONFIG_ARCH_SUN8IW6P1)  
+#if defined(CONFIG_ARCH_SUN9IW1P1) || defined(CONFIG_ARCH_SUN8IW6P1)  || defined(CONFIG_ARCH_SUN8IW8P1) 
 void config_gpio_clk(__u32 mmu_flag);
 #endif
 

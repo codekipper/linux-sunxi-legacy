@@ -20,7 +20,7 @@
 #ifndef __RTL8188E_XMIT_H__
 #define __RTL8188E_XMIT_H__
 
-#define 	MAX_TX_AGG_PACKET_NUMBER 	0xFF
+
 //
 // Queue Select Value in TxDesc
 //
@@ -95,12 +95,7 @@
 //OFFSET 20
 #define	RTY_LMT_EN			BIT(17)
 
-enum TXDESC_SC{
-	SC_DONT_CARE = 0x00,
-	SC_UPPER= 0x01,	
-	SC_LOWER=0x02,
-	SC_DUPLICATE=0x03
-};
+
 //OFFSET 20
 #define SGI					BIT(6)
 #define USB_TXAGG_NUM_SHT	24
@@ -209,7 +204,7 @@ typedef struct txdesc_88e
 	u32 sw0:8; /* offset 30 */
 	u32 sw1:4;
 	u32 mcs15_sgi_max_len:4;
-}TXDESC, *PTXDESC;
+}TXDESC_8188E, *PTXDESC_8188E;
 
 #define txdesc_set_ccx_sw_88e(txdesc, value) \
 	do { \
@@ -254,7 +249,8 @@ struct txrpt_ccx_88e {
 #define txrpt_ccx_sw_88e(txrpt_ccx) ((txrpt_ccx)->sw0 + ((txrpt_ccx)->sw1<<8))
 #define txrpt_ccx_qtime_88e(txrpt_ccx) ((txrpt_ccx)->ccx_qtime0+((txrpt_ccx)->ccx_qtime1<<8))
 
-void rtl8188e_fill_fake_txdesc(PADAPTER	padapter,u8*pDesc,u32 BufferLen,u8 IsPsPoll,u8	IsBTQosNull);
+void rtl8188e_fill_fake_txdesc(PADAPTER	padapter, u8*pDesc, u32 BufferLen,
+		u8 IsPsPoll, u8	IsBTQosNull, u8 bDataFrame);
 #ifdef CONFIG_SDIO_HCI
 s32 rtl8188es_init_xmit_priv(PADAPTER padapter);
 void rtl8188es_free_xmit_priv(PADAPTER padapter);
@@ -263,7 +259,6 @@ s32 rtl8188es_mgnt_xmit(PADAPTER padapter, struct xmit_frame *pmgntframe);
 s32	rtl8188es_hal_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
 thread_return rtl8188es_xmit_thread(thread_context context);
 s32 rtl8188es_xmit_buf_handler(PADAPTER padapter);
-#define hal_xmit_handler rtl8188es_xmit_buf_handler
 
 #ifdef CONFIG_SDIO_TX_TASKLET
 void rtl8188es_xmit_tasklet(void *priv);
@@ -277,7 +272,6 @@ s32 rtl8188eu_hal_xmit(PADAPTER padapter, struct xmit_frame *pxmitframe);
 s32 rtl8188eu_mgnt_xmit(PADAPTER padapter, struct xmit_frame *pmgntframe);
 s32	rtl8188eu_hal_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
 s32 rtl8188eu_xmit_buf_handler(PADAPTER padapter);
-#define hal_xmit_handler rtl8188eu_xmit_buf_handler
 void rtl8188eu_xmit_tasklet(void *priv);
 s32 rtl8188eu_xmitframe_complete(_adapter *padapter, struct xmit_priv *pxmitpriv, struct xmit_buf *pxmitbuf);
 #endif
@@ -292,7 +286,7 @@ s32 rtl8188ee_mgnt_xmit(PADAPTER padapter, struct xmit_frame *pmgntframe);
 void rtl8188ee_xmit_tasklet(void *priv);
 #endif
 
-
+#define SET_TX_DESC_SEC_TYPE_8188E(__pTxDesc, __Value) SET_BITS_TO_LE_4BYTE(__pTxDesc+4, 22, 2, __Value)
 
 #ifdef CONFIG_TX_EARLY_MODE
 void UpdateEarlyModeInfo8188E(struct xmit_priv *pxmitpriv,struct xmit_buf *pxmitbuf );

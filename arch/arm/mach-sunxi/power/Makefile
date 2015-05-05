@@ -12,10 +12,12 @@ $(obj)/brom.o : $(obj)/brom/resumes.code FORCE
 obj-y   += brom.o
 
 suspend-y := main.o
+suspend-$(CONFIG_SCENELOCK) += extended_standby.o
 
-$(obj)/main.o               : $(obj)/suspend_xx.o
+$(obj)/main.o               : $(obj)/suspend_tmp.o
+$(obj)/extended_standby.o   : $(obj)/suspend_tmp.o
 
-$(obj)/suspend_xx.o			: $(obj)/brom/resumes.code FORCE
+$(obj)/suspend_tmp.o        : $(obj)/brom/resumes.code FORCE
 
 $(obj)/brom/resumes.code: FORCE
 	$(Q)$(MAKE) $(build)=$(obj)/brom

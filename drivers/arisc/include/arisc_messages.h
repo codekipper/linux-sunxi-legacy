@@ -79,6 +79,7 @@ typedef struct arisc_message
 /* dvfs commands */
 #define ARISC_CPUX_DVFS_REQ              (ARISC_MESSAGE_BASE + 0x20)  /* request dvfs           (ac327 to arisc) */
 #define ARISC_CPUX_DVFS_CFG_VF_REQ       (ARISC_MESSAGE_BASE + 0x21)  /* request config dvfs v-f table(ac327 to arisc) */
+#define ARISC_CPUX_DVFS_CFG_REQ          (ARISC_MESSAGE_BASE + 0x22)  /* request config info.  (ac327 to arisc) */
 
 /* pmu commands */
 #define ARISC_AXP_INT_COMING_NOTIFY      (ARISC_MESSAGE_BASE + 0x40)  /* interrupt coming notify(arisc to ac327) */
@@ -88,6 +89,8 @@ typedef struct arisc_message
 #define ARISC_AXP_SET_PARAS              (ARISC_MESSAGE_BASE + 0x44)  /* config axp parameters (ac327 to arisc)  */
 #define ARISC_SET_PMU_VOLT               (ARISC_MESSAGE_BASE + 0x45)  /* set pmu volt (ac327 to arisc)           */
 #define ARISC_GET_PMU_VOLT               (ARISC_MESSAGE_BASE + 0x46)  /* get pmu volt (ac327 to arisc)           */
+#define ARISC_SET_LED_BLN                (ARISC_MESSAGE_BASE + 0x47)  /* set led bln (ac327 to arisc)            */
+#define ARISC_AXP_REBOOT                 (ARISC_MESSAGE_BASE + 0x48)  /* reboot system for no pmu protocols      */
 
 /* set arisc debug commands */
 #define ARISC_SET_DEBUG_LEVEL            (ARISC_MESSAGE_BASE + 0x50)  /* set arisc debug level  (ac327 to arisc)     */

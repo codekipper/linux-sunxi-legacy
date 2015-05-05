@@ -50,22 +50,4 @@ void standby_memcpy(void *dest, void *src, int n)
 }
 
 
-/*
-*********************************************************************************************************
-*                           mdelay
-*
-*Description: mdelay function
-*
-*Arguments  :
-*
-*Return     :
-*
-*Notes      :
-*
-*********************************************************************************************************
-*/
-void standby_mdelay(int ms)
-{
-    standby_delay(ms * cpu_ms_loopcnt);
-}
 

@@ -18,7 +18,6 @@
 #ifndef __SUPER_POWER_H__
 #define __SUPER_POWER_H__
 
-#include "super_cfg.h"
 
 
 

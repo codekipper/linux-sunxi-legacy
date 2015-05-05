@@ -3,7 +3,14 @@ set -e
 
 #Setup common variables
 export ARCH=arm
-export CROSS_COMPILE=arm-linux-gnueabi-
+export CROSS_COMPILE=${ARCH}-linux-gnueabi-
+if [ -d "${LICHEE_TOOLCHAIN_PATH}" ]; then
+	GCC=$(find ${LICHEE_TOOLCHAIN_PATH} -perm /a+x -a -regex '.*-gcc');
+	export CROSS_COMPILE="${GCC%-*}-";
+elif [ -n "${LICHEE_CROSS_COMPILER}" ]; then
+	export CROSS_COMPILE="${LICHEE_CROSS_COMPILER}-"
+fi
+
 export AS=${CROSS_COMPILE}as
 export LD=${CROSS_COMPILE}ld
 export CC=${CROSS_COMPILE}gcc
@@ -43,6 +50,19 @@ Invalid Options:
 "
 }
 
+NAND_ROOT=${LICHEE_KDIR}/modules/nand
+
+build_nand_lib()
+{
+	echo "build nand library ${NAND_ROOT}/${LICHEE_CHIP}/lib"
+	if [ -d ${NAND_ROOT}/${LICHEE_CHIP}/lib ]; then
+		echo "build nand library now"
+		make -C modules/nand/${LICHEE_CHIP}/lib clean 2> /dev/null
+		make -C modules/nand/${LICHEE_CHIP}/lib lib install
+	else
+		echo "build nand with existing library"
+	fi
+}
 
 build_gpu_sun8i()
 {
@@ -88,10 +108,10 @@ build_gpu()
 
 	if [ "${chip_sw}" = "sun9iw1" ]; then
 		build_gpu_sun9iw1
-	elif
-	[ "${chip_sw}" = "sun8iw3" ] ||
-	[ "${chip_sw}" = "sun8iw5" ] ||
-	[ "${chip_sw}" = "sun8iw7" ] ||
+	elif 
+	[ "${chip_sw}" = "sun8iw3" ] || 
+	[ "${chip_sw}" = "sun8iw5" ] || 
+	[ "${chip_sw}" = "sun8iw7" ] || 
 	[ "${chip_sw}" = "sun8iw9" ]; then
 		build_gpu_sun8i
 	elif [ "${chip_sw}" = "sun8iw6" ] ; then
@@ -154,23 +174,23 @@ build_kernel()
         SUNXI_STACK_CHECK=1
     fi
     if [ "x$SUNXI_SPARSE_CHECK" = "x" ] && [ "x$SUNXI_SMATCH_CHECK" = "x" ];then
-        make ARCH=arm CROSS_COMPILE=${CROSS_COMPILE} -j${LICHEE_JLEVEL} uImage modules
+        make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} -j${LICHEE_JLEVEL} uImage modules
     else
         if [ "x$SUNXI_SPARSE_CHECK" = "x1" ] && [ -f ../tools/codecheck/sparse/sparse ];then
             echo "\n\033[0;31;1mBuilding Round for sparse check ${KERNEL_CFG}...\033[0m\n\n"
             make clean
-            make CHECK="../tools/codecheck/sparse/sparse" ARCH=arm CROSS_COMPILE=${CROSS_COMPILE} -j${LICHEE_JLEVEL} C=2 uImage modules 2>&1|tee output/build_sparse.txt
+            make CHECK="../tools/codecheck/sparse/sparse" ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} -j${LICHEE_JLEVEL} C=2 uImage modules 2>&1|tee output/build_sparse.txt
             cat output/build_sparse.txt|egrep -w '(warn|error|warning)' >output/warn_sparse.txt
         fi
         if [ "x$SUNXI_SMATCH_CHECK" = "x1" ]&& [ -f ../tools/codecheck/smatch/smatch ];then
             echo "\n\033[0;31;1mBuilding Round for smatch check ${KERNEL_CFG}...\033[0m\n\n"
             make clean
-            make CHECK="../tools/codecheck/smatch/smatch --full-path --no-data -p=kkernel" ARCH=arm CROSS_COMPILE=${CROSS_COMPILE} -j${LICHEE_JLEVEL} C=2 uImage modules 2>&1|tee output/build_smatch.txt
+            make CHECK="../tools/codecheck/smatch/smatch --full-path --no-data -p=kkernel" ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} -j${LICHEE_JLEVEL} C=2 uImage modules 2>&1|tee output/build_smatch.txt
             cat output/build_smatch.txt|egrep -w '(warn|error|warning)' >output/warn_smatch.txt
         fi
     fi
     if [ "x$SUNXI_STACK_CHECK" = "x1" ];then
-        make ARCH=arm CROSS_COMPILE=${CROSS_COMPILE} -j${LICHEE_JLEVEL} checkstack 2>&1|tee output/warn_stack.txt
+        make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} -j${LICHEE_JLEVEL} checkstack 2>&1|tee output/warn_stack.txt
     fi
 	update_kern_ver
 
@@ -205,6 +225,10 @@ build_modules()
 
 	update_kern_ver
 
+	build_nand_lib
+	make -C modules/nand LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} \
+		CONFIG_CHIP_ID=${CONFIG_CHIP_ID} install
+
 	build_gpu
 }
 
@@ -236,7 +260,18 @@ regen_rootfs_cpio()
 	fi
 
 	rm -f rootfs.cpio.gz
-	../scripts/build_rootfs.sh c rootfs.cpio.gz > /dev/null
+
+	CHIP=`echo ${LICHEE_CHIP} | sed -n -e 's/.*\(sun8iw8\).*/\1/pg'`;
+	if [ "${CHIP}" == "sun8iw8" ]; then
+		if [ -d skel ]; then
+			(cd skel; find . | fakeroot  cpio -o -Hnewc | lzma -9 > ../rootfs.cpio.gz)
+		else
+			echo "Warning: Not found skel dir"
+		fi
+	else
+		../scripts/build_rootfs.sh c rootfs.cpio.gz > /dev/null
+	fi
+
 	rm -rf skel
 
 	cd - > /dev/null
@@ -263,6 +298,10 @@ build_ramfs()
 		BASE="0x40000000";
 	fi
 
+	if [ -n "`echo ${LICHEE_CHIP} | sed -n -e 's/.*\(sun8iw8\).*/\1/pg'`" ]; then
+		BIMAGE="output/zImage";
+	fi
+
 	if [ -f vmlinux ]; then
 		bss_sz=`${CROSS_COMPILE}readelf -S vmlinux | \
 			awk  '/\.bss/ {print strtonum("0x"$5)+strtonum("0x"$6)}'`;
@@ -283,11 +322,13 @@ build_ramfs()
 		--base ${BASE} \
 		--ramdisk_offset ${OFFSET} \
 		-o output/boot.img
-
+	
 	# If uboot use *bootm* to boot kernel, we should use uImage.
 	echo build_ramfs
     	echo "Copy boot.img to output directory ..."
     	cp output/boot.img ${LICHEE_PLAT_OUT}
+    	cp output/uImage ${LICHEE_PLAT_OUT}
+    	cp output/zImage ${LICHEE_PLAT_OUT}
 	cp output/vmlinux.tar.bz2 ${LICHEE_PLAT_OUT}
 
         if [ ! -f output/arisc ]; then
@@ -317,7 +358,7 @@ gen_output()
 clean_kernel()
 {
 	echo "Cleaning kernel"
-	make ARCH=arm clean
+	make distclean
 	rm -rf output/*
 
 	(

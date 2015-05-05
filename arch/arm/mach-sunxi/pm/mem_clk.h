@@ -45,10 +45,13 @@ struct clk_misc_t {
 	__u32   PllC1Ctl;    	        //0x0004
 	__u32   Pll3Ctl;		//0x10, video
 	__u32	Pll4Ctl;		//0x18, ve
+	__u32	Pll6Ctl;		//0x28, periph
 	__u32	PllVideo0Bias;           //0x228,  pll video0 bias reg
 	__u32	PllVeBias;              //0x22c,  pll ve    bias reg
+	__u32	PllPeriphBias;              //0x234,  pll periph  bias reg
 	__u32	PllVideo0Reg0Pattern;        //0x288,  pll video0 pattern reg
 	__u32	PllVideo0Reg1Pattern;        //0x288,  pll video0 pattern reg
+	__u32   Apb2Div;		    //0x58, apb2 clk divide ratio
 #endif
 
 };
@@ -117,6 +120,14 @@ __s32 mem_clk_get_pll_factor(struct pll_factor_t *pll_factor);
 
 __s32 mem_clk_get_misc(struct clk_misc_t *clk_misc);
 __s32 mem_clk_set_misc(struct clk_misc_t *clk_misc);
+
+#ifdef CONFIG_ARCH_SUN8IW8P1
+void mem_pio_clk_src_init(void);
+void mem_pio_clk_src_exit(void);
+#else
+static inline void mem_pio_clk_src_init(void) {return; }
+static inline void mem_pio_clk_src_exit(void) {return; }
+#endif
 
 __u32 mem_clk_get_cpu_freq(void);
 #endif  //__MEM_CLK_H__

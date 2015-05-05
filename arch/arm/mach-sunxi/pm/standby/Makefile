@@ -22,14 +22,11 @@ standby-y := 	common.o         	\
 		standby_clock.o  	\
 		standby_ir.o     	\
 		standby_key.o    	\
+		axp209_power.o  	\
 		standby_power.o  	\
 		standby_twi.o    	\
 		standby_usb.o    	\
 		standby_delay.o  	\
-		./arisc/standby_arisc.o 	\
-		./arisc/arisc_hwmsgbox.o 	\
-		./arisc/arisc_hwspinlock.o 	\
-		./arisc/arisc_message_manager.o	\
 		./../pm_debug.o       		\
 		./../mem_timing.o      		\
 		./../mem_mmu_pc.o               \
@@ -43,8 +40,17 @@ standby-y := 	common.o         	\
 		./../mem_tmr.o			\
 		./../mem_tmstmp.o		\
 		./../mem_clk.o			\
-		./../mem_hwspinlock.o		\
 		standby.o
+
+ifneq ($(strip $(CONFIG_SUNXI_ARISC)),)
+standby-y +=	./arisc/standby_arisc.o 	\
+		./arisc/arisc_hwmsgbox.o 	\
+		./arisc/arisc_hwspinlock.o 	\
+		./arisc/arisc_message_manager.o	\
+		./../mem_hwspinlock.o		
+else
+standby-y +=    ./dram/standby.o       
+endif
 
 standby-y := $(addprefix $(obj)/,$(standby-y))
 
@@ -82,6 +88,13 @@ resume1-y :=   super/common.o                \
                ../mem_tmstmp.o               \
 	       ../mem_hwspinlock.o	     \
                ../mem_clk.o
+
+ifneq ($(strip $(CONFIG_ARCH_SUN8IW6P1) $(CONFIG_ARCH_SUN9IW1P1)),)
+ifneq ($(strip $(CONFIG_SUNXI_TRUSTZONE)),)
+    resume1-y +=    super/resume/monitor.o
+endif
+else
+endif
 
 resume1-y := $(addprefix $(obj)/,$(resume1-y))
 

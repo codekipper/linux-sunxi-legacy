@@ -37,6 +37,10 @@
 
 #include "signal.h"
 
+#ifdef CONFIG_SUNXI_OOPS_HOOK
+#include <mach/sunxi_oops.h>
+#endif
+
 static const char *handler[]= { "prefetch abort", "data abort", "address exception", "interrupt" };
 
 void *vectors_page;
@@ -238,6 +242,10 @@ static int __die(const char *str, int err, struct thread_info *thread, struct pt
 	struct task_struct *tsk = thread->task;
 	static int die_counter;
 	int ret;
+
+#ifdef CONFIG_SUNXI_OOPS_HOOK
+	sunxi_oops_hook();
+#endif
 
 	printk(KERN_EMERG "Internal error: %s: %x [#%d]" S_PREEMPT S_SMP
 	       S_ISA "\n", str, err, ++die_counter);

@@ -277,6 +277,8 @@ int check_wakeup_state(cpu_wakeup_src_e src, int para)
 }
 EXPORT_SYMBOL(check_wakeup_state);
 
+/******************************* wakeup src *************************************/
+
 /**
  *	show_standby_state - 	show current standby state, for debug purpose.
  *
@@ -310,8 +312,29 @@ int standby_show_state(void)
 }
 EXPORT_SYMBOL(standby_show_state);
 
-/******************************* wakeup src *************************************/
+#if (defined(CONFIG_ARCH_SUN8IW8P1) || defined(CONFIG_ARCH_SUN8IW6P1))
+/**
+ *	extended_standby_set_volt   -     set  suspend volt.
+ *
+ *	@scene_type: extended standby type;
+ *	@bitmap: pwr sys id's bitmap ;
+ *        @volt_value: volt unit mv;
+ */
+int scene_set_volt(aw_power_scene_e scene_type, unsigned int bitmap,
+        unsigned int volt_value)
+{
+	int i = 0;
 
+	for (i=0; i<extended_standby_cnt; i++) {
+		if (extended_standby[i].scene_type == scene_type) {
+			extended_standby[i].soc_pwr_dep.soc_pwr_dm_state.volt[bitmap] = volt_value;
+			return 0;
+		}
+	}
+	return -1;
+}
+EXPORT_SYMBOL(scene_set_volt);
+#endif
 
 static int __init scenelocks_init(void)
 {

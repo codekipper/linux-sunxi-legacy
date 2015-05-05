@@ -455,3 +455,9 @@ config SND_SOC_AC100DAPM_CODEC
 	default n
 	help
 	  Say Y or M if you want to add support for AC100 audiocodec.
+config SND_SOC_AC200DAPM_CODEC
+	tristate "SUNXI AudioCodec AC200 DAPM"
+	depends on ARCH_SUN8IW6
+	default n
+	help
+	  Say Y or M if you want to add support for AC200 codec.

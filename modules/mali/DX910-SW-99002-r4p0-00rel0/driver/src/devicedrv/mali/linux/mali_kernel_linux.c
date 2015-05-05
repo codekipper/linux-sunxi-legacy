@@ -46,6 +46,8 @@
 #include "mali_linux_trace.h"
 #endif /* CONFIG_TRACEPOINTS */
 
+extern struct attribute_group gpu_attribute_group;
+
 /* from the __malidrv_build_info.c file that is generated during build */
 extern const char *__malidrv_build_info(void);
 
@@ -117,7 +119,7 @@ static u32 mali_cpu_clock_last_value[8] = {0,};
 EXPORT_SYMBOL(mali_set_user_setting);
 EXPORT_SYMBOL(mali_get_user_setting);
 
-static char mali_dev_name[] = "mali0"; /* should be const, but the functions we call requires non-cost */
+static char mali_dev_name[] = "mali"; /* should be const, but the functions we call requires non-cost */
 
 /* This driver only supports one Mali device, and this variable stores this single platform device */
 struct platform_device *mali_platform_device = NULL;
@@ -415,7 +417,9 @@ static int mali_probe(struct platform_device *pdev)
 	}
 
 	mali_platform_device = pdev;
-
+	
+	sysfs_create_group(&mali_platform_device->dev.kobj, &gpu_attribute_group);
+	
 	if (_MALI_OSK_ERR_OK == _mali_osk_wq_init()) {
 		/* Initialize the Mali GPU HW specified by pdev */
 		if (_MALI_OSK_ERR_OK == mali_initialize_subsystems()) {

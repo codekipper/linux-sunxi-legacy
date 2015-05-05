@@ -429,7 +429,7 @@ uint dhd_pkt_filter_init = 0;
 module_param(dhd_pkt_filter_init, uint, 0);
 
 /* Pkt filter mode control */
-uint dhd_master_mode = TRUE;
+uint dhd_master_mode = FALSE;
 module_param(dhd_master_mode, uint, 0);
 
 #ifdef DHDTHREAD
@@ -2854,7 +2854,7 @@ dhd_stop(struct net_device *net)
 	int ifidx = 0;
 	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(net);
 	DHD_OS_WAKE_LOCK(&dhd->pub);
-	DHD_TRACE(("%s: Enter %p\n", __FUNCTION__, net));
+	printk("%s: Enter %p\n", __FUNCTION__, net);
 
 	if (dhd->pub.up == 0) {
 		goto exit;
@@ -2901,6 +2901,7 @@ exit:
 	dhd->pub.txcnt_timeout = 0;
 	dhd->pub.hang_was_sent = 0;
 
+	printk("%s: Exit\n", __FUNCTION__);
 	DHD_OS_WAKE_UNLOCK(&dhd->pub);
 	return 0;
 }
@@ -2916,6 +2917,7 @@ dhd_open(struct net_device *net)
 	int ifidx;
 	int32 ret = 0;
 
+	printk("%s: Enter %p\n", __FUNCTION__, net);
 #if defined(MULTIPLE_SUPPLICANT)
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25)) && 1 && 1
 	if (mutex_is_locked(&_dhd_sdio_mutex_lock_) != 0) {
@@ -3032,6 +3034,7 @@ exit:
 #endif
 #endif /* MULTIPLE_SUPPLICANT */
 
+	printk("%s: Exit ret=%d\n", __FUNCTION__, ret);
 	return ret;
 }
 
@@ -3251,8 +3254,7 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
 	/* Link to bus module */
 	dhd->pub.bus = bus;
 	dhd->pub.hdrlen = bus_hdrlen;
-	if (strlen(firmware_path) != 0)
-		dhd_conf_set_fw_name_by_chip(&dhd->pub, fw_path, firmware_path);
+	dhd_conf_set_fw_name_by_chip(&dhd->pub, fw_path, firmware_path);
 
 	/* Set network interface name if it was provided as module parameter */
 	if (iface_name[0]) {
@@ -3720,7 +3722,7 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	uint power_mode = PM_FAST;
 	uint32 dongle_align = DHD_SDALIGN;
 	uint32 glom = CUSTOM_GLOM_SETTING;
-	uint bcn_timeout = 4;
+	uint bcn_timeout = dhd->conf->bcn_timeout;
 	uint retry_max = 3;
 #if defined(ARP_OFFLOAD_SUPPORT)
 	int arpoe = 1;
@@ -3999,6 +4001,7 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 		bcm_mkiovar("bus:txglom", (char *)&glom, 4, iovbuf, sizeof(iovbuf));
 		dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
 	}
+	dhd_conf_set_glom(dhd);
 
 	/* Setup timeout if Beacons are lost and roam is off to report link down */
 	bcm_mkiovar("bcn_timeout", (char *)&bcn_timeout, 4, iovbuf, sizeof(iovbuf));
@@ -4013,9 +4016,12 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	bcm_mkiovar("apsta", (char *)&apsta, 4, iovbuf, sizeof(iovbuf));
 	dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
 #endif /* defined(AP) && !defined(WLP2P) */
-	dhd_conf_set_bw(dhd);
+	dhd_conf_set_mimo_bw_cap(dhd);
 	dhd_conf_force_wme(dhd);
 	dhd_conf_set_stbc(dhd);
+	dhd_conf_set_srl(dhd);
+	dhd_conf_set_lrl(dhd);
+	dhd_conf_set_spect(dhd);
 
 #if defined(SOFTAP)
 	if (ap_fw_loaded == TRUE) {
@@ -4076,6 +4082,8 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 			__FUNCTION__, CUSTOM_AMPDU_BA_WSIZE, ret));
 	}
 #endif /* CUSTOM_AMPDU_BA_WSIZE */
+	dhd_conf_set_ampdu_ba_wsize(dhd);
+
 #if defined(BCMSUP_4WAY_HANDSHAKE) && defined(WLAN_AKM_SUITE_FT_8021X)
 	/* Read 4-way handshake requirements. */
 	bcm_mkiovar("sup_wpa", (char *)&sup_wpa, 4,
@@ -4361,7 +4369,7 @@ aoe_update_host_ipv4_table(dhd_pub_t *dhd_pub, u32 ipa, bool add, int idx)
 				ipv4_buf[i] = ipa;
 				add = FALSE; /* added ipa to local table  */
 				DHD_ARPOE(("%s: Saved new IP in temp arp_hostip[%d]\n",
-				__FUNCTION__, i));
+					__FUNCTION__, i));
 		} else if (ipv4_buf[i] == ipa) {
 			ipv4_buf[i]	= 0;
 			DHD_ARPOE(("%s: removed IP:%x from temp table %d\n",
@@ -4878,7 +4886,7 @@ dhd_free(dhd_pub_t *dhdp)
 static void __exit
 dhd_module_cleanup(void)
 {
-	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
+	printk("%s: Enter\n", __FUNCTION__);
 
 	dhd_bus_unregister();
 
@@ -4889,14 +4897,14 @@ dhd_module_cleanup(void)
 
 	/* Call customer gpio to turn off power with WL_REG_ON signal */
 	dhd_customer_gpio_wlan_ctrl(WLAN_POWER_OFF);
+	printk("%s: Exit\n", __FUNCTION__);
 }
 
 #if defined(CONFIG_WIFI_CONTROL_FUNC)
 extern bool g_wifi_poweron;
 #endif /* CONFIG_WIFI_CONTROL_FUNC */
 
-static int __init
-dhd_module_init(void)
+static int __dhd_module_init(void)
 {
 	int error = 0;
 
@@ -4905,7 +4913,7 @@ dhd_module_init(void)
 	int chip_up = 0;
 #endif 
 
-	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
+	printk("%s: Enter\n", __FUNCTION__);
 
 	wl_android_init();
 
@@ -5010,6 +5018,7 @@ dhd_module_init(void)
 	wl_android_post_init();
 #endif /* defined(WL_CFG80211) */
 
+	printk("%s: Exit error=%d\n", __FUNCTION__, error);
 	return error;
 
 #if 1 && (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && defined(BCMLXSDMMC)
@@ -5030,8 +5039,44 @@ fail_0:
 
 	wl_android_exit();
 
+	printk("%s: Exit error=%d\n", __FUNCTION__, error);
 	return error;
 }
+
+#if 1
+struct task_struct *dhd_thread;
+struct completion dhd_thread_started;
+
+static int dhd_module_init_thread(void * pArg)
+{
+	allow_signal(SIGTERM);
+	complete(&dhd_thread_started);
+
+	return __dhd_module_init();
+}
+
+static int __init dhd_module_init(void)
+{
+	printk("%s:%d: \n", __func__, __LINE__);
+
+	init_completion(&dhd_thread_started);
+	dhd_thread = kthread_create(dhd_module_init_thread, NULL, "bcmdhd_init");
+	if (IS_ERR(dhd_thread)) {
+		printk("%s: failed to create kernel_thread (%ld)!\n", __func__, PTR_ERR(dhd_thread));
+		return -1;
+	}
+	wake_up_process(dhd_thread);
+	wait_for_completion(&dhd_thread_started);
+
+	return 0;
+}
+#else
+static int __init dhd_module_init(void)
+{
+	return __dhd_module_init();
+}
+#endif
+
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)
 #ifdef USE_LATE_INITCALL_SYNC
@@ -5332,7 +5377,11 @@ dhd_os_tcpackunlock(dhd_pub_t *pub)
 #if defined(CONFIG_DHD_USE_STATIC_BUF)
 uint8* dhd_os_prealloc(void *osh, int section, uint size)
 {
+#if defined(CUSTOMER_HW) && defined(CONFIG_DHD_USE_STATIC_BUF)
+	return (uint8*)dhd_conf_prealloc(section, size);
+#else
 	return (uint8*)wl_android_prealloc(section, size);
+#endif
 }
 
 void dhd_os_prefree(void *osh, void *addr, uint size)

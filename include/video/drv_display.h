@@ -392,10 +392,10 @@ typedef struct
 	unsigned int          trd_right_addr[3];//used when in frame packing 3d mode
 	bool                  pre_multiply; //TRUE: pre-multiply fb
 	disp_window           src_win;    // framebuffer source window,only take x,y if is not scaler mode
+	bool				  interlace;
+	bool				  top_field_first;
 #if 0
-	bool                  interlace;
-	bool                  top_field_first;
-	bool                  pre_frame_valid;
+	bool				  pre_frame_valid;
 #endif
 }disp_fb_info;
 
@@ -804,6 +804,12 @@ typedef enum tag_DISP_CMD
 	DISP_CMD_MEM_SELIDX = 0x2c3,
 
 	DISP_CMD_PRINT_REG = 0x2e0,
+
+	// ---- for tv
+	DISP_CMD_TV_ON = 0x300,
+	DISP_CMD_TV_OFF = 0x301,
+	DISP_CMD_TV_SET_MODE = 0x302,
+	DISP_CMD_TV_GET_MODE = 0x303,
 }__disp_cmd_t;
 
 #define FBIOGET_LAYER_HDL_0 0x4700

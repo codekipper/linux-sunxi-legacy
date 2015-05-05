@@ -11,6 +11,7 @@
 #include <linux/power/scenelock.h>
 #include <mach/gpio.h>
 #include "pm.h"
+#include "../../../../kernel/power/power.h"
 
 static int aw_ex_standby_debug_mask = 0;
 #undef EXSTANDBY_DBG
@@ -34,6 +35,8 @@ static extended_standby_manager_t extended_standby_manager = {
 	.wakeup_gpio_map = 0,
 	.wakeup_gpio_group = 0,
 };
+
+static struct kobject *aw_ex_standby_kobj;
 
 static bool calculate_pll(int index, scene_extended_standby_t *standby_data)
 {
@@ -177,7 +180,7 @@ static int copy_extended_standby_data(scene_extended_standby_t *standby_data)
 			
 			//only update voltage when new config has pwr on info;	
 			//for stable reason, remain the higher voltage;
-			if (0 != (standby_data->soc_pwr_dep.soc_pwr_dm_state.state & temp_standby_data.soc_pwr_dm_state.sys_mask )) {
+			if (0 != (temp_standby_data.soc_pwr_dm_state.state & temp_standby_data.soc_pwr_dm_state.sys_mask )) {
 				for (i=0; i<VCC_MAX_INDEX; i++) {
 					    if(standby_data->soc_pwr_dep.soc_pwr_dm_state.volt[i] > temp_standby_data.soc_pwr_dm_state.volt[i])
 						temp_standby_data.soc_pwr_dm_state.volt[i] = standby_data->soc_pwr_dep.soc_pwr_dm_state.volt[i];
@@ -254,10 +257,12 @@ static int copy_extended_standby_data(scene_extended_standby_t *standby_data)
 			temp_standby_data.soc_dram_state.selfresh_flag &= standby_data->soc_pwr_dep.soc_dram_state.selfresh_flag;
 		} else if ((0 == temp_standby_data.id)) {
 			//update sys_mask: when scene_unlock happend or scene_lock cnt > 0
+#if defined(CONFIG_AW_AXP)
 			temp_standby_data.soc_pwr_dm_state.sys_mask = get_sys_pwr_dm_mask();
+#endif
 			temp_standby_data.id = standby_data->soc_pwr_dep.id;
 			temp_standby_data.soc_pwr_dm_state.state = standby_data->soc_pwr_dep.soc_pwr_dm_state.state;
-			if (0 != (standby_data->soc_pwr_dep.soc_pwr_dm_state.state&standby_data->soc_pwr_dep.soc_pwr_dm_state.sys_mask)) {
+			if (0 != (temp_standby_data.soc_pwr_dm_state.state&temp_standby_data.soc_pwr_dm_state.sys_mask)) {
 				for (i=0; i<VCC_MAX_INDEX; i++) {
 					temp_standby_data.soc_pwr_dm_state.volt[i] = standby_data->soc_pwr_dep.soc_pwr_dm_state.volt[i];
 				}
@@ -311,8 +316,10 @@ const extended_standby_manager_t *get_extended_standby_manager(void)
 	manager_data = &extended_standby_manager;
 	spin_unlock_irqrestore(&data_lock, irqflags);
 	if ((NULL != manager_data) && (NULL != manager_data->pextended_standby)){
+#if defined(CONFIG_AW_AXP)
 	    //update sys_mask
 	    manager_data->pextended_standby->soc_pwr_dm_state.sys_mask = get_sys_pwr_dm_mask();
+#endif
 	    EXSTANDBY_DBG("leave %s : id 0x%lx\n", __func__, manager_data->pextended_standby->id);
 	}
 	return manager_data;
@@ -353,6 +360,91 @@ bool set_extended_standby_manager(scene_extended_standby_t *local_standby)
 	if (NULL != extended_standby_manager.pextended_standby)
 		EXSTANDBY_DBG("leave %s : id 0x%lx\n", __func__, extended_standby_manager.pextended_standby->id);
 	return true;
+}
+
+/**
+ *	extended_standby_set_pmu_id   -     set pmu_id for suspend modules.
+ *
+ *	@num:	pmu serial number;
+ *	@pmu_id: corresponding pmu_id;
+ */
+int extended_standby_set_pmu_id(unsigned int num, unsigned int pmu_id)
+{
+    unsigned int tmp;
+
+    if(num > 4 || num < 1)
+	return -1;
+
+    tmp = temp_standby_data.pmu_id;
+    tmp &= ~(0xff << ((num - 1)*8));
+    tmp |= (pmu_id << ((num - 1)*8));
+    temp_standby_data.pmu_id = tmp;
+
+    return 0;
+}
+
+/**
+ *	extended_standby_get_pmu_id   -     get specific pmu_id for suspend modules.
+ *
+ *	@num:	pmu serial number;
+ */
+int extended_standby_get_pmu_id(unsigned int num)
+{
+    unsigned int tmp;
+
+    if(num > 4 || num < 1)
+	return -1;
+
+    tmp = temp_standby_data.pmu_id;
+    tmp >>= ((num -1)*8);
+    tmp &= (0xff);
+    
+    return tmp;
+}
+
+/**
+ *	extended_standby_store_dram_crc_paras   -     store dram_crc_paras for suspend modules.
+ *
+ *	@num:	pmu serial number;
+ *	@dram_crc_paras: corresponding dram_crc_paras;
+ */
+static ssize_t extended_standby_dram_crc_paras_store(struct device *dev, 
+	struct device_attribute *attr, const char *buf, size_t size)
+{
+    unsigned int dram_crc_en;
+    unsigned int dram_crc_start;
+    unsigned int dram_crc_len;
+
+    sscanf(buf, "%x %x %x\n", &dram_crc_en, &dram_crc_start, &dram_crc_len);
+    if ((dram_crc_en != 0) && (dram_crc_en != 1)) {
+	printk(KERN_ERR "invalid paras for dram_crc: [%x] [%x] [%x] \n", \
+		dram_crc_en, dram_crc_start, dram_crc_len);
+	return size;
+    }
+
+    temp_standby_data.soc_dram_state.crc_en = dram_crc_en;
+    temp_standby_data.soc_dram_state.crc_start = dram_crc_start;
+    temp_standby_data.soc_dram_state.crc_len = dram_crc_len;
+
+    return size;
+}
+
+/**
+ *	extended_standby_show_dram_crc_paras   -     show specific dram_crc_paras for suspend modules.
+ *
+ *	@num:	pmu serial number;
+ */
+int extended_standby_dram_crc_paras_show(struct device *dev, 
+	struct device_attribute *attr, char *buf)
+{
+    char *s = buf;
+
+    s += sprintf(buf, "dram_crc_paras: enable, start, len == [%x] [%x] [%x]\n", \
+	    temp_standby_data.soc_dram_state.crc_en, \
+	    temp_standby_data.soc_dram_state.crc_start, \
+	    temp_standby_data.soc_dram_state.crc_len);
+    
+    return (s-buf);
 }
 
 /**
@@ -502,13 +594,15 @@ int extended_standby_show_state(void)
 
 	spin_lock_irqsave(&data_lock, irqflags);
 	printk(KERN_INFO "dynamic config wakeup_src: 0x%16lx\n", extended_standby_manager.event);
-	parse_wakeup_event(NULL, 0, extended_standby_manager.event);
+	parse_wakeup_event(NULL, 0, extended_standby_manager.event, CPUS_ID);
 	printk(KERN_INFO "wakeup_gpio_map 0x%16lx\n", extended_standby_manager.wakeup_gpio_map);
 	parse_wakeup_gpio_map(NULL, 0, extended_standby_manager.wakeup_gpio_map);
 	printk(KERN_INFO "wakeup_gpio_group 0x%16lx\n", extended_standby_manager.wakeup_gpio_group);
 	parse_wakeup_gpio_group_map(NULL, 0, extended_standby_manager.wakeup_gpio_group);
 	if (NULL != extended_standby_manager.pextended_standby) {
 		printk(KERN_INFO "extended_standby id = 0x%16lx\n", extended_standby_manager.pextended_standby->id);
+		printk(KERN_INFO "extended_standby pmu_id = 0x%16x\n", extended_standby_manager.pextended_standby->pmu_id);
+		printk(KERN_INFO "extended_standby soc_id = 0x%16x\n", extended_standby_manager.pextended_standby->soc_id);
 		printk(KERN_INFO "extended_standby pwr dep as follow: \n");
 	
 		printk(KERN_INFO "pwr dm state as follow: \n");
@@ -587,5 +681,52 @@ int extended_standby_show_state(void)
 	return 0;
 }
 
+static DEVICE_ATTR(dram_crc_paras, S_IRUGO|S_IWUSR|S_IWGRP,
+		extended_standby_dram_crc_paras_show, extended_standby_dram_crc_paras_store);
+
+static struct attribute * g[] = {
+	&dev_attr_dram_crc_paras.attr,
+	NULL,
+};
+static struct attribute_group attr_group = {
+	.attrs = g,
+};
+
+
+static int __init aw_ex_standby_init(void)
+{
+    int error = 0;
+
+    aw_ex_standby_kobj = kobject_create_and_add("aw_ex_standby", power_kobj);
+    if (!aw_ex_standby_kobj)
+	return -ENOMEM;
+    error = sysfs_create_group(aw_ex_standby_kobj, &attr_group);
+
+    return error ? error : 0;
+}
+
+/*
+*********************************************************************************************************
+*                           aw_ex_standby_exit
+*
+*Description: exit ex_standby sub-system on platform;
+*
+*Arguments  : none
+*
+*Return     : none
+*
+*Notes      :
+*
+*********************************************************************************************************
+*/
+static void __exit aw_ex_standby_exit(void)
+{
+    printk(KERN_INFO "aw_ex_standby_exit!\n");
+
+    return;
+}
+
 module_param_named(aw_ex_standby_debug_mask, aw_ex_standby_debug_mask, int, S_IRUGO | S_IWUSR);
+module_init(aw_ex_standby_init);
+module_exit(aw_ex_standby_exit);
 

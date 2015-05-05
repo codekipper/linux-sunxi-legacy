@@ -9,7 +9,7 @@
 #ifndef _dhd_dbg_
 #define _dhd_dbg_
 
-#define USE_NET_RATELIMIT		net_ratelimit()
+#define USE_NET_RATELIMIT		1
 
 #if defined(DHD_DEBUG)
 

@@ -53,7 +53,7 @@
 
 static void bluesleep_stop(void);
 static int bluesleep_start(void);
-static void enter_sleep_mode(void);
+//static void enter_sleep_mode(void);
 
 struct bluesleep_info {
 	unsigned host_wake_irq;
@@ -198,7 +198,7 @@ static int bluesleep_probe(struct platform_device *pdev)
 	if (!bsi)
 		return -ENOMEM;
 
-	type = script_get_item("wifi_para", "rtl8723bs_bt_host_wake", &val);
+	type = script_get_item("bt_para", "bt_host_wake", &val);
 	if (SCIRPT_ITEM_VALUE_TYPE_PIO!=type) {
 		BT_ERR("get rtl8723bs rtl8723bs_bt_host_wake gpio failed\n");
 		goto free_bsi;

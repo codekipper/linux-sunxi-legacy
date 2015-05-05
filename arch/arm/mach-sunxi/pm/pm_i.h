@@ -15,7 +15,6 @@
 
 #include <linux/power/aw_pm.h>
 #include <linux/arisc/hwmsgbox.h>
-#include <linux/arisc/hwspinlock.h>
 
 #include "standby/super/super_clock.h"
 #include "standby/super/super_power.h"

@@ -18,12 +18,10 @@
 #ifndef __SUPER_CLOCK_H__
 #define __SUPER_CLOCK_H__
 
-#include "super_cfg.h"
 
 #define REGS_BASE_PA	   			(0x01C00000)		//�Ĵ��������ַ
 #define CCMU_REGS_BASE_PA         		(REGS_BASE_PA + 0x20000)    //clock manager unit
 
-extern __u32   cpu_ms_loopcnt;
 
 #endif  /* __SUPER_CLOCK_H__ */
 

@@ -28,6 +28,7 @@
 #include <asm/uaccess.h>
 #include <linux/exportfs.h>
 #include <linux/writeback.h>
+#include <linux/fivm.h>
 
 #ifdef CONFIG_NFSD_V3
 #include "xdr3.h"
@@ -797,8 +798,14 @@ nfsd_open(struct svc_rqst *rqstp, struct svc_fh *fhp, umode_t type,
 	if (IS_ERR(*filp))
 		host_err = PTR_ERR(*filp);
 	else {
-		host_err = ima_file_check(*filp, may_flags);
+		host_err = fivm_open_verify(
+				*filp, 
+				(*filp)->f_dentry->d_name.name,
+				may_flags);
+		if(host_err)
+			 goto out_nfserr; 
 
+		host_err = ima_file_check(*filp, may_flags);
 		if (may_flags & NFSD_MAY_64BIT_COOKIE)
 			(*filp)->f_mode |= FMODE_64BITHASH;
 		else

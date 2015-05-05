@@ -20,28 +20,24 @@
 /*
  * Automatically generated C config: don't edit
  */
+//***** temporarily flag *******
+#define CONFIG_SINGLE_IMG
 
 //***** temporarily flag *******
-#define CONFIG_ODM_REFRESH_RAMASK
-#define CONFIG_PHY_SETTING_WITH_ODM
+
 //***** temporarily flag *******
 
 
 #define AUTOCONF_INCLUDED
 #define RTL871X_MODULE_NAME "8189ES"
 #define DRV_NAME "rtl8189es"
+#define EFUSE_MAP_PATH "/system/etc/wifi/wifi_efuse_8189e.map"
+#define WIFIMAC_PATH "/data/wifimac.txt"
 
-#define CONFIG_RTL8188E
 #define CONFIG_SDIO_HCI
 #define PLATFORM_LINUX
 
 //#define CONFIG_IOCTL_CFG80211
-
-#ifdef CONFIG_PLATFORM_ARM_SUN8I
-	#ifndef CONFIG_IOCTL_CFG80211 
-		#define CONFIG_IOCTL_CFG80211 
-	#endif
-#endif
 
 #ifdef CONFIG_IOCTL_CFG80211
 	//#define RTW_USE_CFG80211_STA_EVENT /* Indecate new sta asoc through cfg80211_new_sta */
@@ -51,6 +47,7 @@
 #endif
 
 #define CONFIG_EMBEDDED_FWIMG
+//#define CONFIG_FILE_FWIMG
 
 #define CONFIG_XMIT_ACK
 #ifdef CONFIG_XMIT_ACK
@@ -63,6 +60,9 @@
 #ifdef CONFIG_CONCURRENT_MODE
 	#define CONFIG_TSF_RESET_OFFLOAD		// For 2 PORT TSF SYNC.
 	//#define CONFIG_HWPORT_SWAP				//Port0->Sec , Port1 -> Pri
+	#define CONFIG_RUNTIME_PORT_SWITCH
+	//#define DBG_RUNTIME_PORT_SWITCH
+	#define CONFIG_STA_MODE_SCAN_UNDER_AP_MODE
 #endif
 
 #define CONFIG_AP_MODE
@@ -81,12 +81,12 @@
 	#ifndef CONFIG_NATIVEAP_MLME
 		#define CONFIG_HOSTAPD_MLME
 	#endif
-	//#define CONFIG_FIND_BEST_CHANNEL
+	#define CONFIG_FIND_BEST_CHANNEL
 	//#define CONFIG_NO_WIRELESS_HANDLERS
 #endif
 
 #define CONFIG_TX_MCAST2UNI		// Support IP multicast->unicast
-#define CONFIG_CHECK_AC_LIFETIME 	// Check packet lifetime of 4 ACs.
+//#define CONFIG_CHECK_AC_LIFETIME 	// Check packet lifetime of 4 ACs.
 
 #define CONFIG_P2P
 #ifdef CONFIG_P2P
@@ -100,6 +100,9 @@
 
 	#define CONFIG_P2P_PS
 	//#define CONFIG_P2P_IPS
+	#define CONFIG_P2P_OP_CHK_SOCIAL_CH
+	#define CONFIG_CFG80211_ONECHANNEL_UNDER_CONCURRENT  //replace CONFIG_P2P_CHK_INVITE_CH_LIST flag
+	#define CONFIG_P2P_INVITE_IOT
 #endif
 
 //	Added by Kurt 20110511
@@ -120,6 +123,7 @@
 #define CONFIG_LONG_DELAY_ISSUE
 #define CONFIG_NEW_SIGNAL_STAT_PROCESS
 #define RTW_NOTCH_FILTER 0 /* 0:Disable, 1:Enable, */
+#define CONFIG_DEAUTH_BEFORE_CONNECT
 
 /*
  * Hardware Related Config
@@ -128,15 +132,14 @@
 //#define SUPPORT_HW_RFOFF_DETECTED
 
 //#define CONFIG_SW_LED
-#define CONFIG_REGULATORY_CTRL
 
 /*
  * Interface Related Config
  */
+#define CONFIG_TX_AGGREGATION
 //#define CONFIG_SDIO_TX_TASKLET
 #define CONFIG_SDIO_RX_COPY
-//#define CONFIG_SDIO_REDUCE_TX_POLLING
-
+#define CONFIG_SDIO_TX_ENABLE_AVAL_INT
 
 /*
  * Others
@@ -156,6 +159,19 @@
 #define CONFIG_LPS
 #if defined(CONFIG_LPS) && defined(CONFIG_SDIO_HCI)
 #define CONFIG_LPS_LCLK
+
+#ifdef CONFIG_LPS_LCLK
+#define LPS_RPWM_WAIT_MS 300
+
+//#define CONFIG_DETECT_CPWM_BY_POLLING
+//#define CONFIG_LPS_RPWM_TIMER
+
+#if defined(CONFIG_LPS_RPWM_TIMER) || defined(CONFIG_DETECT_CPWM_BY_POLLING)
+#define LPS_RPWM_WAIT_MS 300
+#endif
+//#define CONFIG_LPS_LCLK_WD_TIMER // Watch Dog timer in LPS LCLK
+#endif
+	
 #endif
 
 #ifdef CONFIG_MAC_LOOPBACK_DRIVER
@@ -194,9 +210,6 @@
 #endif
 
 
-#define 	CONFIG_TX_AGGREGATION
-
-
 #ifdef CONFIG_PLATFORM_ACTIONS_ATV5201
 #define CONFIG_SDIO_DISABLE_RXFIFO_POLLING_LOOP 
 #endif
@@ -223,7 +236,20 @@
 #define RTL8188EU_SUPPORT				0
 #define RTL8188ES_SUPPORT				1
 #define RTL8188E_SUPPORT				(RTL8188EE_SUPPORT|RTL8188EU_SUPPORT|RTL8188ES_SUPPORT)
-#define RTL8188E_FOR_TEST_CHIP			0
+#define TESTCHIP_SUPPORT			0
+
+#define RTL8812E_SUPPORT				0
+#define RTL8812AU_SUPPORT				0
+#define RTL8812A_SUPPORT				(RTL8812E_SUPPORT|RTL8812AU_SUPPORT)
+
+#define RTL8821A_SUPPORT				0
+
+#define RTL8723B_SUPPORT				0
+
+#define RTL8192E_SUPPORT				0
+
+#define RTL8813A_SUPPORT				0
+
 //#if (RTL8188E_SUPPORT==1)
 #define RATE_ADAPTIVE_SUPPORT 			1
 #define POWER_TRAINING_ACTIVE			1
@@ -236,6 +262,11 @@
 
 #define CONFIG_ATTEMPT_TO_FIX_AP_BEACON_ERROR
 
+#ifdef CONFIG_GPIO_WAKEUP
+#define WAKEUP_GPIO_IDX 7
+#endif
+
+#define CONFIG_GPIO_API
 /*
  * HAL	Related Config
  */
@@ -245,30 +276,25 @@
 
 #define DISABLE_BB_RF	0
 
-#if DISABLE_BB_RF
-	#define HAL_MAC_ENABLE		1
-	#define HAL_BB_ENABLE		0
-	#define HAL_RF_ENABLE		0
-#else
-	#define HAL_MAC_ENABLE		1
-	#define HAL_BB_ENABLE		1
-	#define HAL_RF_ENABLE		1
-#endif
-
+#define CONFIG_RF_GAIN_OFFSET
 #define CONFIG_80211D
+
+#define CONFIG_ARP_KEEP_ALIVE
 
 /*
  * Debug Related Config
  */
 #define DBG	1
 
-#define CONFIG_DEBUG /* DBG_871X, etc... */
+//#define CONFIG_DEBUG /* DBG_871X, etc... */
 //#define CONFIG_DEBUG_RTL871X /* RT_TRACE, RT_PRINT_DATA, _func_enter_, _func_exit_ */
 
 #define CONFIG_PROC_DEBUG
 
 #define DBG_CONFIG_ERROR_DETECT
 #define DBG_CONFIG_ERROR_RESET
+
+//#define CONFIG_DISABLE_ODM
 
 //#define DBG_IO
 //#define DBG_DELAY_OS

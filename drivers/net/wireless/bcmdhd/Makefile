@@ -16,6 +16,7 @@ DHDCFLAGS = -Wall -Wstrict-prototypes -Dlinux -DBCMDRIVER                \
 	-DDHD_DONOT_FORWARD_BCMEVENT_AS_NETWORK_PKT -DAMPDU_HOSTREORDER       \
 	-DCUSTOM_SDIO_F2_BLKSIZE=128 -DWL_SDO -DWLTDLS                        \
 	-DPROP_TXSTATUS -DPROP_TXSTATUS_VSDB                                  \
+	-DDHDTCPACK_SUPPRESS -DGET_CUSTOM_MAC_ENABLE                          \
 	-DWL_SUPPORT_BACKPORTED_KPATCHES -DMIRACAST_APPLICATION               \
 	-Idrivers/net/wireless/bcmdhd -Idrivers/net/wireless/bcmdhd/include
 
@@ -40,15 +41,16 @@ endif
 ifeq ($(CONFIG_BCMDHD_POWER_OFF_IN_SUSPEND),y)
 DHDCFLAGS += -DPOWER_OFF_IN_SUSPEND
 endif
-ifeq ($(CONFIG_BCMDHD_OOB_LOW_LEVEL_TRIGGER),y)
-DHDCFLAGS += -DBCMDHD_OOB_LOW_LEVEL_TRIGGER
-endif
 else
 DHDCFLAGS += -DSDIO_ISR_THREAD
 endif
 
 ifeq ($(CONFIG_BCMDHD_AG),y)
 DHDCFLAGS += -DBAND_AG
+endif
+
+ifeq ($(CONFIG_DHD_USE_STATIC_BUF),y)
+DHDCFLAGS += -DSTATIC_WL_PRIV_STRUCT
 endif
 
 ifneq ($(CONFIG_WIRELESS_EXT),)

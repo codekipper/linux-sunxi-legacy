@@ -59,9 +59,9 @@
 
 #define BT_SLEEP_DBG
 #ifdef  BT_SLEEP_DBG
-#define BT_DBG(fmt, arg...) printk(KERN_ERR "[BT_LPM] %s: " fmt "\n" , __func__ , ## arg)
+#define BT_LPM_DBG(fmt, arg...) printk(KERN_ERR "[BT_LPM] %s: " fmt "\n" , __func__ , ## arg)
 #else
-#define BT_DBG(fmt, arg...)
+#define BT_LPM_DBG(fmt, arg...)
 #endif
 /*
  * Defines
@@ -110,7 +110,7 @@ static struct hci_dev *bluesleep_hdev;
 #endif
 
 #if BT_BLUEDROID_SUPPORT
-static struct platform_device *bluesleep_uart_dev;
+static struct platform_device *bluesleep_uart_dev = NULL;
 #endif
 static struct bluesleep_info *bsi;
 
@@ -129,6 +129,8 @@ static int bluesleep_hci_event(struct notifier_block *this,
 /*
  * Global variables
  */
+
+static int host_wake_invert = 0;
 
 /** Global state flags */
 static unsigned long flags;
@@ -173,13 +175,15 @@ static void hsuart_power(int on)
 static inline int bluesleep_can_sleep(void)
 {
 	/* check if HOST_WAKE_BT_GPIO and BT_WAKE_HOST_GPIO are both deasserted */
-	return !gpio_get_value(bsi->ext_wake) &&
-#ifndef CONFIG_BT_LOW_LEVEL_TRIGGER
-		!gpio_get_value(bsi->host_wake) &&
-#else
-		gpio_get_value(bsi->host_wake) &&
-#endif // CONFIG_BT_LOW_LEVEL_TRIGGER
-		(bsi->uport != NULL);
+	if (!host_wake_invert) {
+		return !gpio_get_value(bsi->ext_wake) &&
+			!gpio_get_value(bsi->host_wake) &&
+			(bsi->uport != NULL);
+	} else {
+		return !gpio_get_value(bsi->ext_wake) &&
+			gpio_get_value(bsi->host_wake) &&
+			(bsi->uport != NULL);
+	}
 }
 
 /*
@@ -188,7 +192,7 @@ static inline int bluesleep_can_sleep(void)
 void bluesleep_sleep_wakeup(void)
 {
 	if (test_bit(BT_ASLEEP, &flags)) {
-		BT_DBG("waking up...");
+		BT_LPM_DBG("waking up...");
 		/* Start the timer */
 		mod_timer(&tx_timer, jiffies + (TX_TIMER_INTERVAL * HZ));
 		gpio_set_value(bsi->ext_wake, 1);
@@ -207,11 +211,11 @@ static void bluesleep_sleep_work(struct work_struct *work)
 	if (bluesleep_can_sleep()) {
 		/* already asleep, this is an error case */
 		if (test_bit(BT_ASLEEP, &flags)) {
-			BT_DBG("already asleep");
+			BT_LPM_DBG("already asleep");
 			return;
 		}
 		if (bsi->uport->ops->tx_empty(bsi->uport)) {
-			BT_DBG("going to sleep...");
+			BT_LPM_DBG("going to sleep...");
 			set_bit(BT_ASLEEP, &flags);
 			/*Deactivating UART */
 			hsuart_power(0);
@@ -235,19 +239,22 @@ static void bluesleep_sleep_work(struct work_struct *work)
  */
 static void bluesleep_hostwake_task(unsigned long data)
 {
-	BT_DBG("hostwake line change");
+	BT_LPM_DBG("hostwake line change");
 	spin_lock(&rw_lock);
 
-#ifndef CONFIG_BT_LOW_LEVEL_TRIGGER
-	if (gpio_get_value(bsi->host_wake))
-#else
-	if (!gpio_get_value(bsi->host_wake))
-#endif // CONFIG_BT_LOW_LEVEL_TRIGGER
-		bluesleep_rx_busy();
-	else
-		bluesleep_rx_idle();
+    if (!host_wake_invert) {
+        if (gpio_get_value(bsi->host_wake))
+            bluesleep_rx_busy();
+        else
+            bluesleep_rx_idle();
+    } else {
+        if (!gpio_get_value(bsi->host_wake))
+            bluesleep_rx_busy();
+        else
+            bluesleep_rx_idle();
+    }
 
-	spin_unlock(&rw_lock);
+    spin_unlock(&rw_lock);
 }
 
 /**
@@ -265,7 +272,7 @@ static void bluesleep_outgoing_data(void)
 	/* if the tx side is sleeping... */
 	if (!gpio_get_value(bsi->ext_wake)) {
 
-		BT_DBG("tx was sleeping");
+		BT_LPM_DBG("tx was sleeping");
 		bluesleep_sleep_wakeup();
 	}
 
@@ -276,11 +283,12 @@ static void bluesleep_outgoing_data(void)
 static struct uart_port *bluesleep_get_uart_port(void)
 {
 	struct uart_port *uport = NULL;
-	if (bluesleep_uart_dev)
+	if (bluesleep_uart_dev){
 		uport = platform_get_drvdata(bluesleep_uart_dev);
-
-  BT_DBG("%s get uart_port from blusleep_uart_dev: %s, port irq: %d", 
-		           __FUNCTION__, bluesleep_uart_dev->name, uport->irq);
+		if(uport)
+			BT_LPM_DBG("%s get uart_port from blusleep_uart_dev: %s, port irq: %d",
+					__FUNCTION__, bluesleep_uart_dev->name, uport->irq);
+    }
 
 	return uport;
 }
@@ -398,15 +406,15 @@ static void bluesleep_tx_timer_expire(unsigned long data)
 
 	spin_lock_irqsave(&rw_lock, irq_flags);
 
-	BT_DBG("Tx timer expired");
+	BT_LPM_DBG("Tx timer expired");
 
 	/* were we silent during the last timeout */
 	if (!test_bit(BT_TXDATA, &flags)) {
-		BT_DBG("Tx has been idle");
+		BT_LPM_DBG("Tx has been idle");
 		gpio_set_value(bsi->ext_wake, 0);
 		bluesleep_tx_idle();
 	} else {
-		BT_DBG("Tx data during last period");
+		BT_LPM_DBG("Tx data during last period");
 		mod_timer(&tx_timer, jiffies + (TX_TIMER_INTERVAL*HZ));
 	}
 
@@ -439,6 +447,8 @@ static int bluesleep_start(void)
 {
 	int retval;
 	unsigned long irq_flags;
+	script_item_value_type_e type;
+	script_item_u val;
 
 	spin_lock_irqsave(&rw_lock, irq_flags);
 
@@ -460,12 +470,17 @@ static int bluesleep_start(void)
 
 	/* assert BT_WAKE */
 	gpio_set_value(bsi->ext_wake, 1);
-
-#ifndef CONFIG_BT_LOW_LEVEL_TRIGGER
-	retval = request_irq(bsi->host_wake_irq, bluesleep_hostwake_isr, IRQF_DISABLED | IRQF_TRIGGER_RISING,
-#else
-	retval = request_irq(bsi->host_wake_irq, bluesleep_hostwake_isr, IRQF_DISABLED | IRQF_TRIGGER_FALLING,
-#endif // CONFIG_BT_LOW_LEVEL_TRIGGER
+	type = script_get_item("bt_para", "bt_host_wake_invert", &val);
+	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+		BT_INFO("has no bt_host_wake_invert\n");
+	} else {
+		host_wake_invert = val.val;
+	}
+	if(!host_wake_invert)
+		retval = request_irq(bsi->host_wake_irq, bluesleep_hostwake_isr, IRQF_DISABLED | IRQF_TRIGGER_RISING,
+				"bluetooth hostwake", NULL);
+	else
+		retval = request_irq(bsi->host_wake_irq, bluesleep_hostwake_isr, IRQF_DISABLED | IRQF_TRIGGER_FALLING,
 				 "bluetooth hostwake", NULL);
 	if (retval < 0) {
 		BT_ERR("Couldn't acquire bt_host_wake IRQ or enable it");
@@ -676,15 +691,15 @@ static int __init bluesleep_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	//get bt_wake & bt_host_wake from sys_config.fex
-	type = script_get_item("wifi_para", "ap6xxx_bt_wake", &val);
+	type = script_get_item("bt_para", "bt_wake", &val);
 	if (SCIRPT_ITEM_VALUE_TYPE_PIO!=type) 
-		BT_ERR("get ap6xxx ap6xxx_bt_wake gpio failed\n");
+		BT_ERR("get bt_wake gpio failed\n");
 	else
 		bsi->ext_wake = val.gpio.gpio;	
 	
-	type = script_get_item("wifi_para", "ap6xxx_bt_host_wake", &val);
+	type = script_get_item("bt_para", "bt_host_wake", &val);
 	if (SCIRPT_ITEM_VALUE_TYPE_PIO!=type) 
-		BT_ERR("get ap6xxx ap6xxx_bt_host_wake gpio failed\n");
+		BT_ERR("get bt_host_wake gpio failed\n");
 	else
 		bsi->host_wake = val.gpio.gpio;		
 

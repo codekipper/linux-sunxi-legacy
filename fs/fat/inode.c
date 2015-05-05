@@ -1007,7 +1007,7 @@ static int parse_options(struct super_block *sb, char *options, int is_vfat,
 	opts->numtail = 1;
 	opts->usefree = opts->nocase = 0;
 	opts->tz_utc = 0;
-	opts->errors = FAT_ERRORS_RO;
+	opts->errors = FAT_ERRORS_CONT;
 	*debug = 0;
 
 	if (!options)
@@ -1444,13 +1444,6 @@ int fat_fill_super(struct super_block *sb, void *data, int silent, int isvfat,
 	/* check that FAT table does not overflow */
 	fat_clusters = sbi->fat_length * sb->s_blocksize * 8 / sbi->fat_bits;
 	total_clusters = min(total_clusters, fat_clusters - FAT_START_ENT);
-	if (total_clusters > MAX_FAT(sb)) {
-		if (!silent)
-			fat_msg(sb, KERN_ERR, "count of clusters too big (%u)",
-			       total_clusters);
-		brelse(bh);
-		goto out_invalid;
-	}
 
 	sbi->max_cluster = total_clusters + FAT_START_ENT;
 	/* check the free_clusters, it's not necessarily correct */

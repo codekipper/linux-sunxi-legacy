@@ -1,12 +1,7 @@
-#include "mali_kernel_common.h"
-#include "mali_osk.h"
-
 #include <linux/mali/mali_utgard.h>
 #include <linux/platform_device.h>
 #include <linux/version.h>
 #include <linux/regulator/consumer.h>
-#include <linux/err.h>
-#include <linux/module.h>  
 #include <linux/clk.h>
 #include <linux/clk/sunxi_name.h>
 #include <linux/clk-private.h>
@@ -23,10 +18,12 @@ static int cur_mode = 0;
 #elif defined(CONFIG_SW_POWERNOW)
 #include <mach/powernow.h>
 #endif
+#ifdef CONFIG_HAS_EARLYSUSPEND
+#include <linux/earlysuspend.h>
+#endif /* CONFIG_HAS_EARLYSUSPEND */
 
-static struct clk *mali_clk              = NULL;
-static struct clk *gpu_pll               = NULL;
-static struct regulator *mali_regulator  = NULL;
+static struct clk *mali_clk = NULL;
+static struct clk *gpu_pll  = NULL;
 extern unsigned long totalram_pages;
 
 struct __fb_addr_para 
@@ -36,14 +33,41 @@ struct __fb_addr_para
 };
 
 extern void sunxi_get_fb_addr_para(struct __fb_addr_para *fb_addr_para);
+#ifdef CONFIG_HAS_EARLYSUSPEND
+static void mali_driver_early_suspend_scheduler(struct early_suspend *h);
+static void mali_driver_late_resume_scheduler(struct early_suspend *h);
+#endif /* CONFIG_HAS_EARLYSUSPEND */
 
-static unsigned int vf_table[4][2] =
+extern int ths_read_data(int value);
+
+static unsigned int freq_table[4] =
 {
-	{ 950, 128},
-	{1100, 252},
-	{1100, 384},
-	{1100, 384},
+	128,  /* for early suspend */
+	252,  /* for play video mode */
+#if !defined(CONFIG_ARCH_SUN8IW7P1)
+	384,  /* for normal mode */
+	384,  /* for extreme mode */
+#elif defined(CONFIG_ARCH_SUN8IW7P1)
+	576,  /* for normal mode */
+	576,  /* for extreme mode */
+#endif
 };
+
+#if defined(CONFIG_ARCH_SUN8IW7P1)
+static unsigned int thermal_ctrl_freq[] = {576, 432, 312, 120};
+
+/* This data is for sensor, but the data of gpu may be 5 degress Centigrade higher */
+static unsigned int temperature_threshold[] = {70, 80, 90};  /* degress Centigrade */
+#endif /* defined(CONFIG_ARCH_SUN8IW7P1) */
+
+#ifdef CONFIG_HAS_EARLYSUSPEND
+static struct early_suspend mali_early_suspend_handler = 
+{
+	.level   = EARLY_SUSPEND_LEVEL_DISABLE_FB + 100,
+	.suspend = mali_driver_early_suspend_scheduler,
+	.resume = mali_driver_late_resume_scheduler,
+};
+#endif /* CONFIG_HAS_EARLYSUSPEND */
 
 static struct mali_gpu_device_data mali_gpu_data;
 
@@ -69,14 +93,15 @@ static struct platform_device mali_gpu_device =
 };
 
 /*
+
 ***************************************************************
- @Function	  :get_gpu_clk
+ @Function   :get_gpu_clk
 
- @Description :Get gpu related clocks
+ @Description:Get gpu related clocks
 
- @Input		  :None
+ @Input      :None
 
- @Return	  :Zero or error code
+ @Return     :Zero or error code
 ***************************************************************
 */
 static int get_gpu_clk(void)
@@ -104,23 +129,23 @@ static int get_gpu_clk(void)
 
 /*
 ***************************************************************
- @Function	  :set_freq
+ @Function   :set_freq
 
- @Description :Set gpu related clocks
+ @Description:Set the frequency of gpu related clocks
 
- @Input		  :Frequency value
+ @Input	     :Frequency value
 
- @Return	  :Zero or error code
+ @Return     :Zero or error code
 ***************************************************************
 */
-static int set_freq(int freq)
+static int set_freq(int freq /* MHz */)
 {
 	if(clk_set_rate(gpu_pll, freq*1000*1000))
     {
         printk(KERN_ERR "Failed to set gpu pll clock!\n");
 		return -1;
     }
-	
+
 	if(clk_set_rate(mali_clk, freq*1000*1000))
 	{
 		printk(KERN_ERR "Failed to set mali clock!\n");
@@ -129,16 +154,38 @@ static int set_freq(int freq)
 	
 	return 0;
 }
-	
+
+#if defined(CONFIG_CPU_BUDGET_THERMAL) || defined(CONFIG_SW_POWERNOW) || defined(CONFIG_HAS_EARLYSUSPEND)
 /*
 ***************************************************************
- @Function	  :enable_gpu_clk
+ @Function   :mali_set_freq
 
- @Description :Enable gpu related clocks
+ @Description:Set the frequency of gpu related clocks with mali dvfs function
 
- @Input		  :None
+ @Input	     :Frequency value
 
- @Return	  :None
+ @Return     :Zero or error code
+***************************************************************
+*/
+static int mali_set_freq(int freq /* MHz */)
+{
+	int err;
+	mali_dev_pause();
+	err = set_freq(freq);
+	mali_dev_resume();
+	return err;
+}
+#endif /* defined(CONFIG_CPU_BUDGET_THERMAL) || defined(CONFIG_SW_POWERNOW) || defined(CONFIG_HAS_EARLYSUSPEND) */
+
+/*
+***************************************************************
+ @Function   :enable_gpu_clk
+
+ @Description:Enable gpu related clocks
+
+ @Input	     :None
+
+ @Return     :None
 ***************************************************************
 */
 void enable_gpu_clk(void)
@@ -159,13 +206,13 @@ void enable_gpu_clk(void)
 
 /*
 ***************************************************************
- @Function	  :disable_gpu_clk
+ @Function   :disable_gpu_clk
 	
- @Description :Disable gpu related clocks
+ @Description:Disable gpu related clocks
 	
- @Input		  :None
+ @Input	     :None
 
- @Return	  :None
+ @Return     :None
 ***************************************************************
 */
 void disable_gpu_clk(void)
@@ -177,153 +224,96 @@ void disable_gpu_clk(void)
 	}
 }
 
-#if defined(CONFIG_CPU_BUDGET_THERMAL) || defined(CONFIG_SW_POWERNOW)
-/*
-***************************************************************
- @Function	  :set_vol
-	
- @Description :Set gpu voltage
-	
- @Input		  :Voltage value
-
- @Return	  :Zero or error code
-***************************************************************
-*/
-static int set_vol(int vol)
-{
-	if(regulator_set_voltage(mali_regulator, vol*1000, vf_table[3][0]*1000) != 0)
-    {
-		printk(KERN_ERR "Failed to set gpu power voltage!\n");
-		return -1;
-    }
-	
-	/* wait for power stability */
-	udelay(20);
-	
-	return 0;
-}
-	
-/*
-***************************************************************
- @Function	  :mali_dvfs_change
-		
- @Description :Change the mode of gpu
-
- @Input		  :level, up_flag
-
- @Return	  :NULL
-***************************************************************
-*/
-void mali_dvfs_change(int level, int up_flag)
-{
-	mali_dev_pause();
-	printk(KERN_INFO "Mali dvfs change begin\n");
-	if(up_flag == 1)
-	{
-		if(!set_vol(vf_table[level][0]))
-		{
-			goto out;
-		}
-        if(!set_freq(vf_table[level][1]))
-		{
-			goto out;
-		}
-	}
-	else
-	{
-		if(!set_freq(vf_table[level][1]))
-		{
-			goto out;
-		}
-        if(!set_vol(vf_table[level][0]))
-		{
-			goto out;
-		}
-	}
-
-	printk(KERN_ERR "Gpu DVFS failed!\n");	
-
-out:
-	printk(KERN_INFO "Mali dvfs change end\n");
-	mali_dev_resume();
-	return;
-}
-#endif /* defined(CONFIG_CPU_BUDGET_THERMAL) || defined(CONFIG_SW_POWERNOW) */
-
 #if defined(CONFIG_CPU_BUDGET_THERMAL)
 /*
 ***************************************************************
- @Function	  :mali_throttle_notifier_call
+ @Function   :mali_throttle_notifier_call
 
- @Description :The callback of throttle notifier
+ @Description:The callback function of throttle notifier
 		
- @Input		  :nfb, mode, cmd
+ @Input	     :nfb, mode, cmd
 
- @Return	  :retval
+ @Return     :retval
 ***************************************************************
 */
 static int mali_throttle_notifier_call(struct notifier_block *nfb, unsigned long mode, void *cmd)
 {
     int retval = NOTIFY_DONE;
-	
+
+#if !defined(CONFIG_ARCH_SUN8IW7P1)
 	if(mode == BUDGET_GPU_THROTTLE && cur_mode == 1)
-    {
-		mali_dvfs_change(2, 0);
+	{
+		mali_set_freq(freq_table[2]);
         cur_mode = 0;
     }
-    else
+	else
 	{
         if(cmd && (*(int *)cmd) == 1 && cur_mode != 1)
 		{
-			mali_dvfs_change(3, 1);
-            cur_mode = 1;
+			mali_set_freq(freq_table[3]);
+           	cur_mode = 1;
         }
 		else if(cmd && (*(int *)cmd) == 0 && cur_mode != 0)
 		{
-			if(cur_mode == 1)
-			{
-				mali_dvfs_change(2, 0);
-			}
-			else if(cur_mode == 2)
-			{
-				mali_dvfs_change(2, 1);
-			}
+			mali_set_freq(freq_table[2]);
             cur_mode = 0;
         }
 		else if(cmd && (*(int *)cmd) == 2 && cur_mode != 2)
 		{
-			mali_dvfs_change(1, 0);
+			mali_set_freq(freq_table[1]);
 			cur_mode = 2;
 		}
-    }	
+    }
+#elif defined(CONFIG_ARCH_SUN8IW7P1)
+	int temperature = 0;
+	int i = 0;
+	temperature = ths_read_data(4);
+	for(i=0;i<sizeof(temperature_threshold)/sizeof(temperature_threshold[0]);i++)
+	{
+		if(temperature < temperature_threshold[i])
+		{
+			if(cur_mode != i)
+			{
+				mali_set_freq(thermal_ctrl_freq[i]);
+				cur_mode = i;
+			}
+			goto out;
+		}
+	}
 	
+	mali_set_freq(thermal_ctrl_freq[i]);
+	cur_mode = i;
+
+out:		
+#endif
 	return retval;
 }
+
 static struct notifier_block mali_throttle_notifier = {
 .notifier_call = mali_throttle_notifier_call,
 };
 #elif defined(CONFIG_SW_POWERNOW)
 /*
 ***************************************************************
- @Function	  :mali_powernow_notifier_call
+ @Function   :mali_powernow_notifier_call
 
- @Description :The callback of powernow notifier
+ @Description:The callback function of powernow notifier
 
- @Input		  :this, mode, cmd
+ @Input	     :this, mode, cmd
 
- @Return	  :0
+ @Return     :Zero
 ***************************************************************
 */
 static int mali_powernow_notifier_call(struct notifier_block *this, unsigned long mode, void *cmd)
 {	
 	if(mode == 0 && cur_mode != 0)
 	{
-		mali_dvfs_change(3, 1);
+		mali_set_freq(freq_table[3]);
 		cur_mode = 1;
 	}
 	else if(mode == 1 && cur_mode != 1)
 	{
-		mali_dvfs_change(2, 0);
+		mali_set_freq(freq_table[2]);
 		cur_mode = 0;
 	}	
 	
@@ -337,24 +327,28 @@ static struct notifier_block mali_powernow_notifier = {
 
 /*
 ***************************************************************
- @Function	  :parse_fex
+ @Function   :parse_fex
 
- @Description :Parse fex file data of gpu
+ @Description:Parse fex file data of gpu
 
- @Input		  :normal_freq, extreme_freq, extreme_vol
+ @Input	     :None
 
- @Return	  :None
+ @Return     :None
 ***************************************************************
 */
 static void parse_fex(void)
 {
-	script_item_u mali_used, mali_max_freq, mali_max_vol, mali_clk_freq;
+	script_item_u mali_used, mali_max_freq, mali_clk_freq;
 	
-	if(SCIRPT_ITEM_VALUE_TYPE_INT == script_get_item("clock", "pll8", &mali_clk_freq)) 
+#if defined(CONFIG_ARCH_SUN8IW7P1)
+	if(SCIRPT_ITEM_VALUE_TYPE_INT == script_get_item("clock", "pll_gpu", &mali_clk_freq))
+#else
+	if(SCIRPT_ITEM_VALUE_TYPE_INT == script_get_item("clock", "pll8", &mali_clk_freq))
+#endif
 	{
-		if(mali_clk_freq.val > 0 && mali_clk_freq.val <= vf_table[2][1])
+		if(mali_clk_freq.val > 0)
 		{
-			vf_table[2][1] = mali_clk_freq.val;
+			freq_table[2] = mali_clk_freq.val;
 		}
 	}
 	else
@@ -368,23 +362,15 @@ static void parse_fex(void)
 		{
 			if(SCIRPT_ITEM_VALUE_TYPE_INT == script_get_item("mali_para", "mali_extreme_freq", &mali_max_freq)) 
 			{
-                if (mali_max_freq.val > mali_clk_freq.val && mali_max_freq.val > vf_table[3][1])
+                if (mali_max_freq.val >= mali_clk_freq.val)
 				{
-                    vf_table[3][1] = mali_max_freq.val;
-                }    
+                    freq_table[3] = mali_max_freq.val;
+                }
+				else
+				{
+					freq_table[3] = mali_clk_freq.val;
+				}
             }
-			else
-			{
-				goto err_out;
-			}
-			
-			if(SCIRPT_ITEM_VALUE_TYPE_INT == script_get_item("mali_para", "mali_extreme_vol", &mali_max_vol))
-			{
-                if (mali_max_vol.val > 0)
-				{
-                    vf_table[3][0] = mali_max_vol.val;
-                } 
-			}
 			else
 			{
 				goto err_out;
@@ -394,7 +380,7 @@ static void parse_fex(void)
 	else
 	{
 		goto err_out;
-	}	
+	}
 
 	printk(KERN_INFO "Get mali parameter successfully\n");
 	return;
@@ -403,35 +389,31 @@ err_out:
 	printk(KERN_ERR "Failed to get mali parameter!\n");
 	return;
 }
+
 /*
 ***************************************************************
- @Function	  :mali_platform_init
+ @Function   :mali_platform_init
 
- @Description :Init the power and clocks of gpu
+ @Description:Init the power and clocks of gpu
 
- @Input		  :None
+ @Input	     :None
 
- @Return	  :_MALI_OSK_ERR_OK or error code
+ @Return     :Zero or error code
 ***************************************************************
 */
-_mali_osk_errcode_t mali_platform_init(void)
+static int mali_platform_init(void)
 {
 	parse_fex();
-	
-	/* get gpu regulator */
-	mali_regulator = regulator_get(NULL, "axp22_dcdc2");	
-	if (IS_ERR(mali_regulator)) 
-	{
-	    printk(KERN_ERR "Failed to get mali regulator!\n");
-		goto err_out;
-	}
 	
 	if(get_gpu_clk())
 	{
 		goto err_out;
 	}
-	
-	set_freq(vf_table[2][1]);
+
+	if(set_freq(freq_table[2]))
+	{
+		goto err_out;
+	}
 	
 	enable_gpu_clk();
 	
@@ -440,33 +422,40 @@ _mali_osk_errcode_t mali_platform_init(void)
 #elif defined(CONFIG_SW_POWERNOW)
 	register_sw_powernow_notifier(&mali_powernow_notifier);
 #endif
+#ifdef CONFIG_HAS_EARLYSUSPEND
+		register_early_suspend(&mali_early_suspend_handler);
+#endif /* CONFIG_HAS_EARLYSUSPEND */
 
 	printk(KERN_INFO "Init Mali gpu successfully\n");
-    MALI_SUCCESS;
+    return 0;
 
 err_out:
 	printk(KERN_ERR "Failed to init Mali gpu!\n");
-	return _MALI_OSK_ERR_FAULT;
+	return -1;
 }
 
 /*
 ***************************************************************
- @Function	  :mali_platform_device_unregister
+ @Function   :mali_platform_device_unregister
 
- @Description :Unregister mali platform device
+ @Description:Unregister mali platform device
 
- @Input		  :None
+ @Input	     :None
 
- @Return	  :0
+ @Return     :Zero
 ***************************************************************
 */
 static int mali_platform_device_unregister(void)
 {
-    platform_device_unregister(&mali_gpu_device);
+	platform_device_unregister(&mali_gpu_device);
 	
 #if defined(CONFIG_SW_POWERNOW)
 	unregister_sw_powernow_notifier(&mali_powernow_notifier);
 #endif /* CONFIG_SW_POWERNOW */
+	
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	unregister_early_suspend(&mali_early_suspend_handler);
+#endif /* CONFIG_HAS_EARLYSUSPEND */
 
 	disable_gpu_clk();
 
@@ -475,20 +464,19 @@ static int mali_platform_device_unregister(void)
 
 /*
 ***************************************************************
- @Function	  :sun8i_mali_platform_device_register
+ @Function   :sun8i_mali_platform_device_register
 
- @Description :Register mali platform device
+ @Description:Register mali platform device
 
- @Input		  :None
+ @Input	     :None
 
- @Return	  :0 or error code
+ @Return     :Zero or error code
 ***************************************************************
 */
 int sun8i_mali_platform_device_register(void)
 {
-    int err;
-	
-    struct __fb_addr_para fb_addr_para={0};
+	int err;	
+    struct __fb_addr_para fb_addr_para = {0};
 
     sunxi_get_fb_addr_para(&fb_addr_para);
 
@@ -497,16 +485,17 @@ int sun8i_mali_platform_device_register(void)
 	{
         mali_gpu_data.fb_start = fb_addr_para.fb_paddr;
         mali_gpu_data.fb_size = fb_addr_para.fb_size;
-		mali_gpu_data.shared_mem_size = totalram_pages * PAGE_SIZE; /* B */
+		mali_gpu_data.shared_mem_size = totalram_pages  * PAGE_SIZE; /* B */
 
         err = platform_device_add_data(&mali_gpu_device, &mali_gpu_data, sizeof(mali_gpu_data));
         if(0 == err)
 		{
             err = platform_device_register(&mali_gpu_device);
-            if (0 == err){
-                if(_MALI_OSK_ERR_OK != mali_platform_init())
+            if (0 == err)
+			{
+                if(0 != mali_platform_init())
 				{
-					return _MALI_OSK_ERR_FAULT;
+					return -1;
 				}
 #if defined(CONFIG_PM_RUNTIME)
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37))
@@ -525,3 +514,37 @@ int sun8i_mali_platform_device_register(void)
 	
     return err;
 }
+
+#ifdef CONFIG_HAS_EARLYSUSPEND
+/*
+***************************************************************
+ @Function   :mali_driver_early_suspend_scheduler
+
+ @Description:The callback function of early suspend
+
+ @Input      :h
+
+ @Return     :None
+***************************************************************
+*/
+static void mali_driver_early_suspend_scheduler(struct early_suspend *h)
+{
+	mali_set_freq(freq_table[0]);
+}
+
+/*
+***************************************************************
+ @Function   :mali_driver_late_resume_scheduler
+
+ @Description:The callback function of early suspend
+
+ @Input      :h
+
+ @Return     :None
+***************************************************************
+*/
+static void mali_driver_late_resume_scheduler(struct early_suspend *h)
+{
+	mali_set_freq(freq_table[2]);
+}
+#endif /* CONFIG_HAS_EARLYSUSPEND */

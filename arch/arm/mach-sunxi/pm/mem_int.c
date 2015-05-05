@@ -118,6 +118,10 @@ __s32 mem_enable_int(enum interrupt_source_e src)
 	GicDDisc = (void *)IO_ADDRESS(SUNXI_GIC_DIST_PBASE);
 	GicCDisc = (void *)IO_ADDRESS(SUNXI_GIC_CPU_PBASE);
 
+	if(0 == src){
+	    return -1;
+	}
+
 	//enable interrupt source
 	*(volatile __u32 *)(GicDDisc + GIC_DIST_ENABLE_SET + tmpGrp*4) |= (1<<tmpSrc);
 	//printk("GicDDisc + GIC_DIST_ENABLE_SET + tmpGrp*4 = 0x%x. tmpGrp = 0x%x.\n", GicDDisc + GIC_DIST_ENABLE_SET + tmpGrp*4, tmpGrp);
@@ -149,6 +153,10 @@ __s32 mem_query_int(enum interrupt_source_e src)
 	GicDDisc = (void *)IO_ADDRESS(SUNXI_GIC_DIST_PBASE);
 	GicCDisc = (void *)IO_ADDRESS(SUNXI_GIC_CPU_PBASE);
 
+	if(0 == src){
+	    return -1;
+	}
+	
 	result = *(volatile __u32 *)(GicDDisc + GIC_DIST_PENDING_SET + tmpGrp*4) & (1<<tmpSrc);
 
 	//printk("GicDDisc + GIC_DIST_PENDING_SET + tmpGrp*4 = 0x%x. tmpGrp = 0x%x.\n", GicDDisc + GIC_DIST_PENDING_SET + tmpGrp*4, tmpGrp);

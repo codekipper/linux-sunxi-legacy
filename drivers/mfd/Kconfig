@@ -579,6 +579,17 @@ config MFD_AC100
 	  in order to use the actual functionaltiy of the device
 	  other drivers must be enabled.
 
+config MFD_AC200
+	bool "Support Allwinnertech AC200"
+	select MFD_CORE
+	select REGMAP_I2C
+	depends on I2C=y && GENERIC_HARDIRQS
+	help
+	  Say yes here if you have ac200 chip on your board.
+	  .This driver provides core support for the ac200,
+	  in order to use the actual functionaltiy of the device
+	  other drivers must be enabled.
+
 config MFD_PCF50633
 	tristate "Support for NXP PCF50633"
 	depends on I2C

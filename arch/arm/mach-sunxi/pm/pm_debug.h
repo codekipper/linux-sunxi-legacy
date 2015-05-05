@@ -89,6 +89,21 @@ void show_mem_status(void);
 __u32 save_sun5i_mem_status_nommu(volatile __u32 val);
 __u32 save_sun5i_mem_status(volatile __u32 val);
 
+
+/*for secure debug, add by huangshr
+ *data: 2014-10-20
+ */
+void pm_secure_mem_status_init(void);
+void pm_secure_mem_status_init_nommu(void);
+void pm_secure_mem_status_clear(void);
+void pm_secure_mem_status_exit(void);
+void show_pm_secure_mem_status(void);
+void save_pm_secure_mem_status(volatile __u32 val);
+void save_pm_secure_mem_status_nommu(volatile __u32 val);
+__u32 get_pm_secure_mem_status(void);
+
+
+
 void io_init(void);
 void io_init_high(void);
 void io_init_low(void);

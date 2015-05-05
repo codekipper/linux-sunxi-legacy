@@ -22,6 +22,8 @@
 #ifndef	__ASM_ARCH_HWSPINLOCK_H
 #define	__ASM_ARCH_HWSPINLOCK_H
 
+#include <linux/spinlock.h>
+
 #define	AW_MSG_HWSPINLOCK         (0)
 #define	AW_AUDIO_HWSPINLOCK       (1)
 #define	AW_RTC_REG_HWSPINLOCK     (2)
@@ -43,7 +45,8 @@
  *
  * returns:  0 if lock hwspinlock succeeded, other if failed.
  */
-int arisc_hwspin_lock_timeout(int hwid, unsigned int timeout);
+int arisc_hwspin_lock_timeout(int hwid, unsigned int timeout, \
+                              spinlock_t *lock, unsigned long *flags);
 
 /**
  * unlock a specific hwspinlock.
@@ -51,5 +54,5 @@ int arisc_hwspin_lock_timeout(int hwid, unsigned int timeout);
  *
  * returns:  0 if unlock hwspinlock succeeded, other if failed.
  */
-int arisc_hwspin_unlock(int hwid);
+int arisc_hwspin_unlock(int hwid, spinlock_t *lock, unsigned long *flags);
 #endif	//__ASM_ARCH_HWSPINLOCK_H

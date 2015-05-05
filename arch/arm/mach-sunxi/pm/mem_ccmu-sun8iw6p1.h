@@ -90,14 +90,17 @@ typedef struct __CCMU_AHB1_RATIO_REG0054
 #define APB2_CLKSRC_LOSC    (0)
 #define APB2_CLKSRC_HOSC    (1)
 #define APB2_CLKSRC_PLL6    (2)
-typedef struct __CCMU_APB2_RATIO_REG0058
-{
+typedef union{
+    __u32 dwval;
+    struct
+    {
     __u32   DivM:5;             //bit0,  clock divide ratio m, the divider is from 1 to 32.
     __u32   reserved:11;        //bit5,  reserved
     __u32   DivN:2;             //bit16, clock pre-divide ratio 1/2/4/8
     __u32   reserved1:6;        //bit18, reserved
     __u32   ClkSrc:2;           //bit24, clock source select, 00-LOSC, 01-OSC24M, 10/11-PLL6
     __u32   reserved2:6;        //bit26, reserved
+    } bits;
 } __ccmu_apb2_ratio_reg0058_t;
 
 typedef struct __CCMU_PLLLOCK_REG0200

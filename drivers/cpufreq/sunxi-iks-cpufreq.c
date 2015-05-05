@@ -152,6 +152,8 @@ static struct clk  *cluster_clk[MAX_CLUSTERS];
 static unsigned int cluster_pll[MAX_CLUSTERS];
 static struct cpufreq_frequency_table *freq_table[MAX_CLUSTERS + 1];
 static struct regulator *cpu_vdd[MAX_CLUSTERS]; /* cpu vdd handler   */
+static char cpufreq_c0_cpuvdd[32];
+static char cpufreq_c1_cpuvdd[32];
 
 static DEFINE_PER_CPU(unsigned int, physical_cluster);
 static DEFINE_PER_CPU(unsigned int, cpu_last_req_freq);
@@ -662,11 +664,13 @@ static int sunxi_cpufreq_cpu_init(struct cpufreq_policy *policy)
         /* HMP use the per-cluster freq table */
         if (cur_cluster == A7_CLUSTER) {
             policy->min = policy->cpuinfo.min_freq = l_freq_min;
-            policy->max = policy->cpuinfo.max_freq = l_freq_ext;
+            policy->cpuinfo.max_freq = l_freq_ext;
+            policy->max = l_freq_max;
             policy->cpuinfo.boot_freq  = l_freq_boot;
         } else if (cur_cluster == A15_CLUSTER) {
             policy->min = policy->cpuinfo.min_freq = b_freq_min;
-            policy->max = policy->cpuinfo.max_freq = b_freq_ext;
+            policy->cpuinfo.max_freq = b_freq_ext;
+            policy->max = b_freq_max;
             policy->cpuinfo.boot_freq  = b_freq_boot;
         }
     }
@@ -726,6 +730,37 @@ static struct notifier_block sunxi_switcher_notifier = {
 	.notifier_call = sunxi_cpufreq_switcher_notifier,
 };
 
+static void sunxi_get_cluster_power(void)
+{
+    script_item_value_type_e type;
+    script_item_u item_temp;
+
+	memset(cpufreq_c0_cpuvdd, 0, 32);
+	memset(cpufreq_c1_cpuvdd, 0, 32);
+
+	printk("%s:%d: \n", __func__, __LINE__);
+
+    type = script_get_item("cluster_para", "cluster0_power", &item_temp);
+    if(type == SCIRPT_ITEM_VALUE_TYPE_STR){
+        strcpy(cpufreq_c0_cpuvdd, item_temp.str);
+        CPUFREQ_DBG("cpufreq_c0_cpuvdd: %s\n", cpufreq_c0_cpuvdd);
+    }else{
+        strcpy(cpufreq_c0_cpuvdd, SUNXI_CPUFREQ_C0_CPUVDD);
+		CPUFREQ_ERR("Can not get cluster0_power from sys_config, use default[%s] for cluster0\n", cpufreq_c0_cpuvdd);
+	}
+
+    type = script_get_item("cluster_para", "cluster1_power", &item_temp);
+    if(type == SCIRPT_ITEM_VALUE_TYPE_STR){
+        strcpy(cpufreq_c1_cpuvdd, item_temp.str);
+        CPUFREQ_DBG("cpufreq_c1_cpuvdd: %s\n", cpufreq_c1_cpuvdd);
+    }else{
+        strcpy(cpufreq_c1_cpuvdd, SUNXI_CPUFREQ_C1_CPUVDD);
+		CPUFREQ_ERR("Can not get cluster0_power from sys_config, use default[%s] for cluster1\n", cpufreq_c1_cpuvdd);
+	}
+
+	return;
+}
+
 static int  __init sunxi_cpufreq_init(void)
 {
     int ret, i;
@@ -754,13 +789,15 @@ static int  __init sunxi_cpufreq_init(void)
     cluster_pll[A7_CLUSTER] = ARISC_DVFS_PLL1;
     cluster_pll[A15_CLUSTER] = ARISC_DVFS_PLL2;
 
-    cpu_vdd[A7_CLUSTER] = regulator_get(NULL, SUNXI_CPUFREQ_C0_CPUVDD);
+	sunxi_get_cluster_power();
+
+    cpu_vdd[A7_CLUSTER] = regulator_get(NULL, cpufreq_c0_cpuvdd);
     if (IS_ERR(cpu_vdd[A7_CLUSTER])) {
         CPUFREQ_ERR("%s: could not get Cluster0 cpu vdd\n", __func__);
         return -ENOENT;
     }
 
-    cpu_vdd[A15_CLUSTER] = regulator_get(NULL, SUNXI_CPUFREQ_C1_CPUVDD);
+    cpu_vdd[A15_CLUSTER] = regulator_get(NULL, cpufreq_c1_cpuvdd);
     if (IS_ERR(cpu_vdd[A15_CLUSTER])) {
         regulator_put(cpu_vdd[A7_CLUSTER]);
         CPUFREQ_ERR("%s: could not get Cluster1 cpu vdd\n", __func__);

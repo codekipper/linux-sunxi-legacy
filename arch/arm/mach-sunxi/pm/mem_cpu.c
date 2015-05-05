@@ -119,6 +119,7 @@ static struct saved_context default_copro_value = {
 	.monvecbar = 0x00000000,	/*Monitor Vector Base*/
 #elif defined(CORTEX_A9)
 #elif defined(CORTEX_A7)
+	//only accessable from secure world.
 
 #endif	
 
@@ -251,8 +252,9 @@ void __save_processor_state(struct saved_context *ctxt)
 	asm volatile ("mrc p15, 0, %0, c12, c0, 1" : "=r"(ctxt->mvbar));
 	asm volatile ("mrc p15, 0, %0, c12, c1, 1" : "=r"(ctxt->vir));
 #elif defined(CORTEX_A7)
+	//only accessable from secure world.
 	asm volatile ("mrc p15, 0, %0, c12, c0, 0" : "=r"(ctxt->vbar));
-	asm volatile ("mrc p15, 0, %0, c12, c0, 1" : "=r"(ctxt->mvbar));
+	//asm volatile ("mrc p15, 0, %0, c12, c0, 1" : "=r"(ctxt->mvbar));
 	//asm volatile ("mrc p15, 0, %0, c12, c1, 0" : "=r"(ctxt->isr));
 #endif
 
@@ -350,8 +352,9 @@ void __restore_processor_state(struct saved_context *ctxt)
 	asm volatile ("mcr p15, 0, %0, c12, c0, 1" : : "r"(ctxt->mvbar));
 	asm volatile ("mcr p15, 0, %0, c12, c1, 1" : : "r"(ctxt->vir));
 #elif defined(CORTEX_A7)
+	//only accessable from secure world.
 	asm volatile ("mcr p15, 0, %0, c12, c0, 0" : : "r"(ctxt->vbar));
-	asm volatile ("mcr p15, 0, %0, c12, c0, 1" : : "r"(ctxt->mvbar));
+	//asm volatile ("mcr p15, 0, %0, c12, c0, 1" : : "r"(ctxt->mvbar));
 	//asm volatile ("mcr p15, 0, %0, c12, c1, 0" : : "r"(ctxt->isr));
 #endif
 
@@ -405,9 +408,6 @@ void set_copro_default(void)
 	asm volatile ("mcr p15, 0, %0, c1, c0, 0" : : "r"(ctxt->cr)); //will effect visible addr space
 	asm volatile ("mcr p15, 0, %0, c1, c0, 1" : : "r"(ctxt->acr)); //?
 	asm volatile ("mcr p15, 0, %0, c1, c0, 2" : : "r"(ctxt->cacr));
-	asm volatile ("mcr p15, 0, %0, c1, c1, 0" : : "r"(ctxt->sccfgr)); //?
-	asm volatile ("mcr p15, 0, %0, c1, c1, 1" : : "r"(ctxt->scdbgenblr)); //?
-	asm volatile ("mcr p15, 0, %0, c1, c1, 2" : : "r"(ctxt->nonscacctrlr)); //?
 #endif	
 	
 	/* CR2 */
@@ -463,8 +463,6 @@ void set_copro_default(void)
 	asm volatile ("mcr p15, 0, %0, c12, c0, 0" : : "r"(ctxt->snsvbar));
 	asm volatile ("mcr p15, 0, %0, c12, c0, 1" : : "r"(ctxt->monvecbar)); //?
 #elif defined(CORTEX_A7)
-	asm volatile ("mcr p15, 0, %0, c12, c0, 0" : : "r"(ctxt->vbar));
-	asm volatile ("mcr p15, 0, %0, c12, c0, 1" : : "r"(ctxt->mvbar));
 	//asm volatile ("mcr p15, 0, %0, c12, c1, 0" : : "r"(ctxt->isr));
 #endif
 

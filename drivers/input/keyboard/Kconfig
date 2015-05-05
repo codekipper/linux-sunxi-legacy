@@ -591,6 +591,13 @@ config IR_RX_SUNXI
          help
           Say Y here to enable the IR RX, support NEC code.
 
+config SUNXI_ANYIR_SUPPORT
+   bool "sunxi any ir support"
+   depends on IR_RX_SUNXI
+   default n
+   help
+       Say Y here to enable any ir support.
+
 config IR_TX_SUNXI
        tristate "sunxi IR TX support"
          help
@@ -601,5 +608,12 @@ config KEYPAD_SUNXI
 	depends on ARCH_SUN8IW9
 	help
 		Say Y here to enable the keyboard, support 8x8 keys.
+		based on verify board.
+
+config SUNXI_GPIO_KEY
+	tristate "gpio key for H3 prototype"
+	depends on ARCH_SUN8IW7
+	help
+		Say Y here to enable the gpio key.
 		based on verify board.
 endif

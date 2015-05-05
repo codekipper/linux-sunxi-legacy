@@ -4,7 +4,31 @@ static uint8_t axp_reg_addr = 0;
 
 static void axp15_mfd_irq_work(struct work_struct *work)
 {
-	return;
+#ifdef CONFIG_AXP15_IRQ
+    struct axp_dev *chip = container_of(work, struct axp_dev, irq_work);
+    uint64_t irqs = 0;
+
+    while (1) {
+        if (chip->ops->read_irqs(chip, &irqs)) {
+            printk("[AXP15-MFD] read irq failed!\n");
+            break;
+        }
+
+        irqs &=chip->irqs_enabled;
+        if (irqs == 0) break;
+
+        blocking_notifier_call_chain(&chip->notifier_list, (uint32_t)irqs, (void *)0);
+    }
+
+#ifdef  CONFIG_AXP_TWI_USED
+    enable_irq(chip->client->irq);
+#else
+    arisc_enable_nmi_irq();
+#endif
+
+#else
+    return;
+#endif /* CONFIG_AXP15_IRQ */
 }
 
 static int axp15_disable_irqs(struct axp_dev *chip, uint64_t irqs)
@@ -73,6 +97,10 @@ static int  axp15_init_chip(struct axp_dev *chip)
 		chip->type = AXP15;
 	else
 		chip->type = 0;
+
+    /* clear all IRQs */
+    __axp_write(&devaddr, chip->client, AXP15_INTSTS1, 0xff, false);
+    __axp_write(&devaddr, chip->client, AXP15_INTSTS2, 0xff, false);
 
 	/* mask and clear all IRQs */
 	chip->irqs_enabled = 0xffff;

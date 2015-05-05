@@ -22,20 +22,28 @@
 *.lst
 *.symtypes
 *.order
+*.map
+modules.builtin
+Module.symvers
+Module.markers
 *.elf
 *.bin
-*.tar
 *.gz
 *.bz2
 *.lzma
 *.xz
-*.lz4
 *.lzo
 *.patch
 *.gcno
-modules.builtin
-Module.symvers
-*.dwo
+standby.code
+resume1.code
+
+#
+# Gcov files
+#
+*.gcda
+*.gcno
+*.gcov
 
 #
 # Top-level generic files
@@ -44,20 +52,15 @@ Module.symvers
 /TAGS
 /linux
 /vmlinux
-/vmlinux-gdb.py
 /vmlinuz
 /System.map
 /Module.markers
+/Module.symvers
 
 #
 # Debian directory (make deb-pkg)
 #
 /debian/
-
-#
-# tar directory (make tar*-pkg)
-#
-/tar-install/
 
 #
 # git files that we don't want to ignore even it they are dot-files
@@ -69,6 +72,7 @@ Module.symvers
 # Generated include files
 #
 include/config
+include/linux/version.h
 include/generated
 arch/*/include/generated
 
@@ -93,16 +97,11 @@ GTAGS
 *~
 \#*#
 
-#
-# Leavings from module signing
-#
-extra_certificates
-signing_key.priv
-signing_key.x509
-x509.genkey
-
-# Kconfig presets
-all.config
-
-# Kdevelop4
-*.kdev4
+# lichee ingnore files
+skel/
+output/
+bImage
+*.swp
+rootfs.cpio.gz
+drivers/arisc/binary/arisc
+modules/eurasia_km/eurasiacon/binary2_sunxi_android_release/

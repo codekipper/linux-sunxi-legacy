@@ -202,6 +202,10 @@ dhd_common_init(osl_t *osh)
 	if (select_type == 5) {
 		bcm_strncpy_s(fw_path, sizeof(fw_path), "/system/vendor/modules/fw_bcm40183b2_ag.bin", MOD_PARAM_PATHLEN-1);
 	}
+	// select ap6335
+	if (select_type == 6) {
+		bcm_strncpy_s(fw_path, sizeof(fw_path), "/system/vendor/modules/fw_bcm4339a0_ag.bin", MOD_PARAM_PATHLEN-1);
+	}
 #else /* CONFIG_BCMDHD_FW_PATH */
 	fw_path[0] = '\0';
 #endif /* CONFIG_BCMDHD_FW_PATH */
@@ -218,7 +222,10 @@ dhd_common_init(osl_t *osh)
 	if (select_type == 5) {
 		bcm_strncpy_s(nv_path, sizeof(nv_path), "/system/vendor/modules/nvram_ap6330.txt", MOD_PARAM_PATHLEN-1);
 	}
-	
+	// select ap6335
+	if (select_type == 6) {
+		bcm_strncpy_s(nv_path, sizeof(nv_path), "/system/vendor/modules/nvram_ap6335.txt", MOD_PARAM_PATHLEN-1);
+	}
 #else /* CONFIG_BCMDHD_NVRAM_PATH */
 	nv_path[0] = '\0';
 #endif /* CONFIG_BCMDHD_NVRAM_PATH */
@@ -1302,10 +1309,15 @@ wl_host_event(dhd_pub_t *dhd_pub, int *ifidx, void *pktdata,
 #endif /* WL_CFG80211 */
 		if (ifevent->ifidx > 0 && ifevent->ifidx < DHD_MAX_IFS) {
 			if (ifevent->action == WLC_E_IF_ADD) {
-				if (dhd_add_if(dhd_pub->info, ifevent->ifidx, NULL, event->ifname,
-					event->addr.octet, ifevent->flags, ifevent->bssidx)) {
-					DHD_ERROR(("%s: dhd_add_if failed!! ifidx: %d for %s\n",
-						__FUNCTION__, ifevent->ifidx, event->ifname));
+				if (dhd_add_if(dhd_pub->info, ifevent->ifidx,
+					NULL, event->ifname,
+					event->addr.octet,
+					ifevent->flags, ifevent->bssidx)) {
+					DHD_ERROR(("%s: dhd_add_if failed!!"
+							" ifidx: %d for %s\n",
+							__FUNCTION__,
+							ifevent->ifidx,
+							event->ifname));
 					return (BCME_ERROR);
 				}
 			}
@@ -1498,6 +1510,8 @@ dhd_pktfilter_offload_enable(dhd_pub_t * dhd, char *arg, int enable, int master_
 
 	/* Parse packet filter id. */
 	enable_parm.id = htod32(strtoul(argv[i], NULL, 0));
+	if (dhd_conf_del_pkt_filter(dhd, enable_parm.id))
+		goto fail;
 
 	/* Parse enable/disable value. */
 	enable_parm.enable = htod32(enable);
@@ -1511,19 +1525,19 @@ dhd_pktfilter_offload_enable(dhd_pub_t * dhd, char *arg, int enable, int master_
 	rc = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, buf, buf_len, TRUE, 0);
 	rc = rc >= 0 ? 0 : rc;
 	if (rc)
-		DHD_TRACE(("%s: failed to add pktfilter %s, retcode = %d\n",
-		__FUNCTION__, arg, rc));
+		DHD_TRACE(("%s: failed to %s pktfilter %s, retcode = %d\n",
+		__FUNCTION__, enable?"enable":"disable", arg, rc));
 	else
-		DHD_TRACE(("%s: successfully added pktfilter %s\n",
-		__FUNCTION__, arg));
+		DHD_TRACE(("%s: successfully %s pktfilter %s\n",
+		__FUNCTION__, enable?"enable":"disable", arg));
 
 	/* Contorl the master mode */
 	bcm_mkiovar("pkt_filter_mode", (char *)&master_mode, 4, buf, sizeof(buf));
 	rc = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, buf, sizeof(buf), TRUE, 0);
 	rc = rc >= 0 ? 0 : rc;
 	if (rc)
-		DHD_TRACE(("%s: failed to add pktfilter %s, retcode = %d\n",
-		__FUNCTION__, arg, rc));
+		DHD_TRACE(("%s: failed to set pkt_filter_mode %d, retcode = %d\n",
+		__FUNCTION__, master_mode, rc));
 
 fail:
 	if (arg_org)
@@ -1588,6 +1602,8 @@ dhd_pktfilter_offload_set(dhd_pub_t * dhd, char *arg)
 
 	/* Parse packet filter id. */
 	pkt_filter.id = htod32(strtoul(argv[i], NULL, 0));
+	if (dhd_conf_del_pkt_filter(dhd, pkt_filter.id))
+		goto fail;
 
 	if (argv[++i] == NULL) {
 		DHD_ERROR(("Polarity not provided\n"));
@@ -1678,6 +1694,9 @@ void dhd_pktfilter_offload_delete(dhd_pub_t *dhd, int id)
 		DHD_ERROR(("%s: Failed to delete filter ID:%d, ret=%d\n",
 			__FUNCTION__, id, ret));
 	}
+	else
+		DHD_TRACE(("%s: successfully deleted pktfilter %d\n",
+		__FUNCTION__, id));
 }
 #endif /* PKT_FILTER_SUPPORT */
 
@@ -1695,10 +1714,10 @@ dhd_arp_offload_set(dhd_pub_t * dhd, int arp_mode)
 	retcode = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
 	retcode = retcode >= 0 ? 0 : retcode;
 	if (retcode)
-		DHD_TRACE(("%s: failed to set ARP offload mode to 0x%x, retcode = %d\n",
+		DHD_ERROR(("%s: failed to set ARP offload mode to 0x%x, retcode = %d\n",
 			__FUNCTION__, arp_mode, retcode));
 	else
-		DHD_TRACE(("%s: successfully set ARP offload mode to 0x%x\n",
+		DHD_ARPOE(("%s: successfully set ARP offload mode to 0x%x\n",
 			__FUNCTION__, arp_mode));
 }
 
@@ -1712,10 +1731,10 @@ dhd_arp_offload_enable(dhd_pub_t * dhd, int arp_enable)
 	retcode = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
 	retcode = retcode >= 0 ? 0 : retcode;
 	if (retcode)
-		DHD_TRACE(("%s: failed to enabe ARP offload to %d, retcode = %d\n",
+		DHD_ERROR(("%s: failed to enabe ARP offload to %d, retcode = %d\n",
 			__FUNCTION__, arp_enable, retcode));
 	else
-		DHD_TRACE(("%s: successfully enabed ARP offload to %d\n",
+		DHD_ARPOE(("%s: successfully enabed ARP offload to %d\n",
 			__FUNCTION__, arp_enable));
 	if (arp_enable) {
 		uint32 version;
@@ -1782,11 +1801,11 @@ dhd_arp_offload_add_ip(dhd_pub_t *dhd, uint32 ipaddr, int idx)
 	retcode = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, iov_len, TRUE, idx);
 
 	if (retcode)
-		DHD_TRACE(("%s: ARP ip addr add failed, retcode = %d\n",
-		__FUNCTION__, retcode));
+		DHD_ERROR(("%s: ARP ip addr add failed, retcode = %d\n",
+			__FUNCTION__, retcode));
 	else
-		DHD_TRACE(("%s: sARP H ipaddr entry added \n",
-		__FUNCTION__));
+		DHD_ARPOE(("%s: sARP H ipaddr entry added \n",
+			__FUNCTION__));
 }
 
 int
@@ -1808,8 +1827,8 @@ dhd_arp_get_arp_hostip_table(dhd_pub_t *dhd, void *buf, int buflen, int idx)
 	retcode = dhd_wl_ioctl_cmd(dhd, WLC_GET_VAR, buf, buflen, FALSE, idx);
 
 	if (retcode) {
-		DHD_TRACE(("%s: ioctl WLC_GET_VAR error %d\n",
-		__FUNCTION__, retcode));
+		DHD_ERROR(("%s: ioctl WLC_GET_VAR error %d\n",
+			__FUNCTION__, retcode));
 
 		return -1;
 	}

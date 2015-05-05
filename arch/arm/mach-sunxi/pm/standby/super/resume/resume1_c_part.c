@@ -7,6 +7,11 @@ struct aw_mem_para mem_para_info;
 
 extern char *__bss_start;
 extern char *__bss_end;
+#if (defined(CONFIG_ARCH_SUN8IW6P1) || defined(CONFIG_ARCH_SUN9IW1P1)) && defined(CONFIG_SUNXI_TRUSTZONE)
+extern void switch2normal(int entry_addr, unsigned int vector);
+#endif
+static __u32 __tzasc_calc_2_power(__u32 data);
+int (*func_entry)(void);
 static __s32 dcdc2, dcdc3;
 static __u32 sp_backup;
 static __u32  *tmpPtr = (__u32  *)&__bss_start;
@@ -45,7 +50,6 @@ static __u32 status = 0;
 
 int resume1_c_part(void)
 {
-
 #ifdef SET_COPRO_REG
 	save_mem_status_nommu(RESUME1_START |0x07);
 	set_copro_default();
@@ -59,13 +63,7 @@ int resume1_c_part(void)
 #else
 	save_mem_status_nommu(RESUME1_START |0x08);
 
-	if(unlikely(mem_para_info.debug_mask&PM_STANDBY_PRINT_RESUME)){
-		//config uart
-		serial_puts_nommu("resume1: 0. \n");	
-	}
-
 	/*restore freq from 408M to orignal freq.*/
-	//busy_waiting();
 	mem_clk_setdiv(&mem_para_info.clk_div);
 	mem_clk_set_pll_factor(&mem_para_info.pll_factor);
 	change_runtime_env();
@@ -82,7 +80,7 @@ int resume1_c_part(void)
 	//after restore mmu, u need to re-init reg base address.
 	restore_mmu_state(&(mem_para_info.saved_mmu_state));
 	save_mem_status(RESUME1_START |0xA);
-
+	
 #endif
 
 //before jump to late_resume	
@@ -95,7 +93,7 @@ int resume1_c_part(void)
 	save_mem_status(RESUME1_START |0xc);
 	flush_icache();
 #endif
-	
+
 	mem_clk_init(1);
 	if(unlikely(mem_para_info.debug_mask&PM_STANDBY_PRINT_RESUME)){
 	    serial_puts("resume1: 3. after restore mmu, before jump.\n");
@@ -108,7 +106,6 @@ int resume1_c_part(void)
 		printk("addr PH: 0x%x = 0x%x. \n", (IO_ADDRESS(AW_JTAG_PH_GPIO_PA)), *(volatile __u32 * )(IO_ADDRESS(AW_JTAG_PH_GPIO_PA)));
 	    }
 	}
-
 
 	save_mem_status(RESUME1_START |0xe);
 	jump_to_resume((void *)mem_para_info.resume_pointer, mem_para_info.saved_runtime_context_svc);
@@ -136,6 +133,14 @@ void set_pll( void )
 	__u32 mva_addr = 0x00000000;
 	__u32 index = 0;
 
+#if (defined(CONFIG_ARCH_SUN8IW6P1) || defined(CONFIG_ARCH_SUN9IW1P1)) && defined(CONFIG_SUNXI_TRUSTZONE)
+	__u32 i = 0;
+	__u32 reserved_dram_size = 16;
+	__u32 dram_size = 0;		    //unit is Mbytes.
+	__u32 permission = 0;
+	__u32 region_size = 0;
+#endif
+
 	asm volatile ("mrc p15, 0, %0, c0, c0, 5" : "=r"(cpu_id)); //Read CPU ID register
 	cpu_id &= 0x3;
 	if(0 == cpu_id){
@@ -151,6 +156,7 @@ void set_pll( void )
 		/*init debug state*/
 		mem_status_init_nommu();
 
+		save_mem_status_nommu(RESUME0_START |0x0);
 #ifdef CONFIG_ARCH_SUN8I
 		//switch to 24M
 		*(volatile __u32 *)(&CmuReg->SysClkDiv) = CPU_CLK_REST_DEFAULT_VAL;
@@ -158,6 +164,8 @@ void set_pll( void )
 		//get mem para info
 		//move other storage to sram: saved_resume_pointer(virtual addr), saved_mmu_state
 		mem_memcpy((void *)&mem_para_info, (void *)(DRAM_MEM_PARA_INFO_PA), sizeof(mem_para_info));
+		
+		save_mem_status_nommu(RESUME0_START |0x1);
 
 		//config jtag gpio
 		//need to config gpio clk? apb1 clk gating?
@@ -172,6 +180,7 @@ void set_pll( void )
 				
 		//config pll para
 		mem_clk_set_misc(&mem_para_info.clk_misc);
+		save_mem_status_nommu(RESUME0_START |0x3);
 		//enable pll1 and setting PLL1 to 408M	
 #ifdef CONFIG_ARCH_SUN8IW1P1	
 		//N = 17, P=1 -> pll1 = 24*N/P = 24*17 = 408M
@@ -184,6 +193,7 @@ void set_pll( void )
 		*(volatile __u32 *)(&CmuReg->Pll1Ctl) = (0x02001100) | (0x80000000); //N = 17, P=1 -> pll1 = 17*24 = 408M
 #endif
 
+		save_mem_status_nommu(RESUME0_START |0x4);
 #if 0	//for a31?
 		//setting pll6 to 600M
 		//enable pll6
@@ -192,16 +202,16 @@ void set_pll( void )
 #elif defined CONFIG_ARCH_SUN9IW1P1
 		//Make sure the clk src is 24M.
 		//notice: when vdd_sys is not reset, this ops may be not stable.
-		save_mem_status_nommu(RESUME1_START |0x02);
+		save_mem_status_nommu(RESUME0_START |0x02);
 		*(volatile __u32 *)(&CmuReg->Cpu_Clk_Src) = CPU_CLK_REST_DEFAULT_VAL;
 
 		//get mem para info
 		//move other storage to sram: saved_resume_pointer(virtual addr), saved_mmu_state
-		save_mem_status_nommu(RESUME1_START |0x03);
+		save_mem_status_nommu(RESUME0_START |0x03);
 		mem_memcpy((void *)&mem_para_info, (void *)(DRAM_MEM_PARA_INFO_PA), sizeof(mem_para_info));
 
 		//config jtag gpio
-		save_mem_status_nommu(RESUME1_START |0x04);
+		save_mem_status_nommu(RESUME0_START |0x04);
 		//config gpio clk;
 		config_gpio_clk(0);
 
@@ -215,14 +225,14 @@ void set_pll( void )
 		}
 
 		//config pll para: bias and tun para.
-		save_mem_status_nommu(RESUME1_START |0x05);
+		save_mem_status_nommu(RESUME0_START |0x05);
 		mem_clk_set_misc(&mem_para_info.clk_misc);
 		//enable pll1 and setting PLL1 to 408M
 		//N = 17, P=1 -> pll1 = 24*N/P = 24*17 = 408M
 		//Notice: the setting need be double checked before ic is ready. !!!!!!
 		*(volatile __u32 *)(&CmuReg->Pll_C0_Cfg) = (CPU_PLL_REST_DEFAULT_VAL) | (0x80000000); 
 		*(volatile __u32 *)(&CmuReg->Pll_C1_Cfg) = (CPU_PLL_REST_DEFAULT_VAL) | (0x80000000);
-		save_mem_status_nommu(RESUME1_START |0x06);
+		save_mem_status_nommu(RESUME0_START |0x06);
 #endif
 
 		init_perfcounters(1, 0); //need double check..
@@ -233,6 +243,7 @@ void set_pll( void )
 		if(unlikely(mem_para_info.debug_mask&PM_STANDBY_PRINT_RESUME)){
 			//config uart
 			serial_init_nommu(mem_para_info.debug_mask&PM_STANDBY_PRINT_PORT);
+			serial_puts_nommu("resume1: start. \n");	
 		}
 	}else{
 		/* execute a TLBIMVAIS operation to addr: 0x0000,0000 */
@@ -350,6 +361,7 @@ void set_pll( void )
 	}
 #endif
 
+	save_mem_status_nommu(RESUME0_START |0x6);
 	//switch to PLL1
 #ifdef CONFIG_ARCH_SUN8I
 
@@ -359,6 +371,7 @@ void set_pll( void )
 	*(volatile __u32 *)(&CmuReg->SysClkDiv) = (0x20000) | ( (~0x30000)&(*(volatile __u32 *)(&CmuReg->SysClkDiv)) );
 #endif
 
+		save_mem_status_nommu(RESUME0_START |0x7);
 #elif defined(CONFIG_ARCH_SUN9IW1P1)
 	//switch to PLL1
 	if(get_cur_cluster_id()){
@@ -367,11 +380,58 @@ void set_pll( void )
 	    *(volatile __u32 *)(&CmuReg->Cpu_Clk_Src) = 0x00000001;
 	}
 #endif
+    change_runtime_env();
+    delay_us(100);
 
-	change_runtime_env();
-	delay_us(100);
+#if (defined(CONFIG_ARCH_SUN8IW6P1) || defined(CONFIG_ARCH_SUN9IW1P1)) && defined(CONFIG_SUNXI_TRUSTZONE)
 	
+	//busy_waiting();
+	//config gic to non-secure
+	//id0-id1023:1024/32 = 0x20;
+	//2048?
+	//how to config sgi interrupt?
+	for (i = 0; i < (0x40); i += 4)
+		*(volatile __u32 *)(SUNXI_GIC_DIST_PBASE + 0x80 + i) = 0xffffffff;
+
+#if 0
+	//config tzasc
+	writel(0x2, 0x01c1e000 + 0x04);						// config non-secure int signal action.
+	writel(0, 0x01c1e000 + 0x18);						// 0 bybass disable
+	writel(0, 0x01c1e000 + 0x1c);						// secure
+	writel(0x01, 0x01c1e000 + 0x34);					// security inversion enable.
+
+	//config secure region
+	//base address according to dram size
+	dram_size = mem_para_info.dram_size;
+
+	//region 1: can be access by non-secure.
+	permission  = 0b1111<<28;						//secure & non-secure is permitted to access.
+	region_size = (__tzasc_calc_2_power(dram_size*1024/32) + 0b001110)<<1;
+	writel(0x00000000, 0x01c1e000 + 0x100 + 0x10);				// base addr
+	writel(permission | region_size | 1 ,0x01c1e000 + 0x108 + 0x10);	// attribute
+
+	//region 2: top 16M region, reserved for secure world.
+	permission  = 0b1100<<28;							 //only secure is permitted to access.
+	region_size = (__tzasc_calc_2_power(reserved_dram_size*1024/32) + 0b001110)<<1;
+	writel((dram_size - reserved_dram_size)<<20, 0x01c1e000 + 0x100 + 0x20);	// secure base addr
+	writel(permission | region_size | 1, 0x01c1e000 + 0x108 + 0x20);		// attribute.
+#endif
+
+	//switch to normal world
+	func_entry = resume1_c_part;
+	switch2normal((int)func_entry, mem_para_info.monitor_vector);
+#endif
 	return ;
 }
 
+static __u32 __tzasc_calc_2_power(__u32 data)
+{
+            __u32 ret = 0;
 
+	    do
+	    {
+		    data >>= 1;
+		    ret ++;
+	    } while(data);
+            return (ret - 1);
+}

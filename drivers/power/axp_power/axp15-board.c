@@ -378,9 +378,21 @@ static struct axp_funcdev_info axp_regldevs[] = {
 	}, 
 };
 
+
+static struct axp_funcdev_info axp_splydev[]={
+	{
+		.name = "axp15-irq",
+		.id = AXP15_ID_SUPPLY,
+		.platform_data = NULL,
+	},
+};
+
+
 static struct axp_platform_data axp_pdata = {
 	.num_regl_devs = ARRAY_SIZE(axp_regldevs),
+	.num_sply_devs = ARRAY_SIZE(axp_splydev),
 	.regl_devs = axp_regldevs,
+	.sply_devs = axp_splydev,
 };
 
 static struct axp_mfd_chip_ops axp15_ops[] = {
@@ -469,6 +481,9 @@ static struct i2c_driver axp_i2c_driver = {
 static int  axp15_platform_probe(struct platform_device *pdev)
 {
 	int ret = 0;
+#ifdef CONFIG_AXP15_IRQ
+    struct platform_device *irqdev;
+#endif
 
 	axp15_dev.dev = &pdev->dev;
 	dev_set_drvdata(axp15_dev.dev, &axp15_dev);
@@ -483,6 +498,18 @@ static int  axp15_platform_probe(struct platform_device *pdev)
 		printk("axp15 mfd register failed\n");
 		return ret;
 	}
+
+#ifdef CONFIG_AXP15_IRQ
+    /* register irq-handler for A80-P1 */
+    irqdev = platform_device_alloc("axp15-irq-handler", 0);
+	irqdev->dev.parent = axp15_dev.dev;
+	ret = platform_device_add(irqdev);
+	if (ret) {
+		printk("axp15-irq-handler device register failed\n");
+		return ret;
+	}
+#endif
+
 	return 0;
 }
 
@@ -517,7 +544,9 @@ static int __init axp15_board_init(void)
 			return ret;
 		}
 
-		ret = i2c_register_board_info(1, axp_mfd_i2c_board_info, ARRAY_SIZE(axp_mfd_i2c_board_info));
+		axp_mfd_i2c_board_info[0].addr = axp15_config.pmu_twi_addr;
+		axp_mfd_i2c_board_info[0].irq = axp15_config.pmu_irq_id;
+		ret = i2c_register_board_info(axp15_config.pmu_twi_id, axp_mfd_i2c_board_info, ARRAY_SIZE(axp_mfd_i2c_board_info));
 		if (ret < 0) {
 			printk("axp_i2c_board_info add failed\n");
 			return ret;

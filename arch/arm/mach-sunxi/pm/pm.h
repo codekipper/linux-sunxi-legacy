@@ -16,6 +16,9 @@
 #include "mem_cpu.h"
 #include "mem_ccmu.h"
 #include "mem_serial.h"
+#include "mem_key.h"
+#include "mem_ir.h"
+#include "mem_usb.h"
 #include "mem_printk.h"
 #include "mem_divlibc.h"
 #include "mem_int.h"
@@ -95,6 +98,7 @@ struct mmu_state {
 struct aw_mem_para{
 	void **resume_pointer;
 	volatile __u32 mem_flag;
+	__u32 monitor_vector;
 	__u32 axp_event;
 	__u32 sys_event;
 	__u32 debug_mask;
@@ -249,6 +253,15 @@ __s32 mem_ccu_restore(struct ccm_state *ccm_reg);
 
 extern struct aw_mem_para mem_para_info;
 extern struct super_standby_para super_standby_para_info;
+
+#if defined(CONFIG_ARCH_SUN8IW8P1)
+
+#else
+#ifdef CONFIG_SUNXI_ARISC
+#else
+#warning "ARISC driver is not enabled!!!!!!!!!"
+#endif
+#endif
 
 #endif /*_PM_H*/
 

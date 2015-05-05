@@ -151,7 +151,7 @@ static void async_run_entry_fn(struct work_struct *work)
 
 	/* 3) remove self from the running queue */
 	spin_lock_irqsave(&async_lock, flags);
-	list_del(&entry->list);
+	list_del_init(&entry->list);
 
 	/* 4) free the entry */
 	kfree(entry);
@@ -186,6 +186,7 @@ static async_cookie_t __async_schedule(async_func_ptr *ptr, void *data, struct l
 		ptr(data, newcookie);
 		return newcookie;
 	}
+	INIT_LIST_HEAD(&entry->list);
 	INIT_WORK(&entry->work, async_run_entry_fn);
 	entry->func = ptr;
 	entry->data = data;

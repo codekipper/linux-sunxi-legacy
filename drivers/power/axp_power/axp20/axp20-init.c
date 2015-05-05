@@ -67,7 +67,7 @@ void axp20_power_off(int power_start)
 
 	printk("[axp] send power-off command!\n");
 	mdelay(20);
-	if(power_start != 1){
+	if(axp20_config.power_start != 1){
 		axp_write(axp->dev, POWER20_INTSTS3, 0x03);
 		axp_read(axp->dev, POWER20_STATUS, &val);
 		if(val & 0xF0){

@@ -30,7 +30,7 @@ extern void dhdsdio_isr(void * args);
 #include <dngl_stats.h>
 #include <dhd.h>
 #endif 
-
+#include <mach/sys_config.h>
 /**
  * SDIO Host Controller info
  */
@@ -608,6 +608,9 @@ static irqreturn_t wlan_oob_irq(int irq, void *dev_id)
 int bcmsdh_register_oob_intr(void * dhdp)
 {
 	int error = 0;
+	script_item_value_type_e type;
+	script_item_u val;
+	int wl_host_wake_invert = 0;
 
 	SDLX_MSG(("%s: Enter \n", __FUNCTION__));
 
@@ -619,14 +622,17 @@ int bcmsdh_register_oob_intr(void * dhdp)
 		SDLX_MSG(("%s: IRQ=%d Type=%X \n", __FUNCTION__,
 			(int)sdhcinfo->oob_irq, (int)sdhcinfo->oob_flags));
 
-#ifndef BCMDHD_OOB_LOW_LEVEL_TRIGGER
-	error = devm_request_irq(sdhcinfo->dev,sdhcinfo->oob_irq, wlan_oob_irq, IRQF_TRIGGER_HIGH, "bcmsdh", NULL);
-#else
-	error = devm_request_irq(sdhcinfo->dev,sdhcinfo->oob_irq, wlan_oob_irq, IRQF_TRIGGER_LOW, "bcmsdh", NULL);
-#endif
-  if (IS_ERR_VALUE(error)) {
-    SDLX_MSG(("Failed to get gpio irq for wifi wakeup ap\n"));
-  }
+	type = script_get_item("wifi_para", "wl_host_wake_invert", &val);
+	if(SCIRPT_ITEM_VALUE_TYPE_INT == type)
+		wl_host_wake_invert = val.val;
+	if(!wl_host_wake_invert)
+		error = devm_request_irq(sdhcinfo->dev,sdhcinfo->oob_irq, wlan_oob_irq, IRQF_TRIGGER_HIGH, "bcmsdh", NULL);
+	else
+		error = devm_request_irq(sdhcinfo->dev,sdhcinfo->oob_irq, wlan_oob_irq, IRQF_TRIGGER_LOW, "bcmsdh", NULL);
+
+	if (IS_ERR_VALUE(error)) {
+		SDLX_MSG(("Failed to get gpio irq for wifi wakeup ap\n"));
+	}
 
 #if defined(CONFIG_ARCH_RHEA) || defined(CONFIG_ARCH_CAPRI) || defined(CONFIG_ARCH_SUNXI)
 		printk("\nbcmdhd wakeup %d\n", device_may_wakeup(sdhcinfo->dev));

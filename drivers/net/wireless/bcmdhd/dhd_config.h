@@ -18,6 +18,26 @@ extern char firmware_path[MOD_PARAM_PATHLEN];
 extern int disable_proptx;
 extern uint dhd_doflow;
 
+/* mac range */
+typedef struct wl_mac_range {
+	uint32 oui;
+	uint32 nic_start;
+	uint32 nic_end;
+} wl_mac_range_t;
+
+/* mac list */
+typedef struct wl_mac_list {
+	int count;
+	wl_mac_range_t *mac;
+	char name[MOD_PARAM_PATHLEN];		/* path */
+} wl_mac_list_t;
+
+/* mac list head */
+typedef struct wl_mac_list_ctrl {
+	int count;
+	struct wl_mac_list *m_mac_list_head;
+} wl_mac_list_ctrl_t;
+
 /* channel list */
 typedef struct wl_channel_list {
 	/* in - # of channels, out - # of entries */
@@ -53,9 +73,12 @@ typedef struct conf_pkt_filter_del {
 #endif
 
 typedef struct dhd_conf {
+	wl_mac_list_ctrl_t fw_by_mac;	/* Firmware auto selection by MAC */
+	wl_mac_list_ctrl_t nv_by_mac;	/* NVRAM auto selection by MAC */
 	char fw_path[MOD_PARAM_PATHLEN];		/* Firmware path */
 	char nv_path[MOD_PARAM_PATHLEN];		/* NVRAM path */
 	uint band;			/* Band, b:2.4G only, otherwise for auto */
+	int mimo_bw_cap;			/* Bandwidth, 0:HT20ALL, 1: HT40ALL, 2:HT20IN2G_HT40PIN5G */
 	wl_country_t cspec;		/* Country */
 	wl_channel_list_t channels;	/* Support channels */
 	uint roam_off;		/* Roaming, 0:enable, 1:disable */
@@ -73,12 +96,24 @@ typedef struct dhd_conf {
 	conf_pkt_filter_add_t pkt_filter_add;		/* Packet filter add */
 	conf_pkt_filter_del_t pkt_filter_del;		/* Packet filter add */
 #endif
+	int srl;	/* short retry limit */
+	int lrl;	/* long retry limit */
+	uint bcn_timeout;	/* beacon timeout */
+	uint32 bus_txglom;	/* bus:txglom */
+	uint32 ampdu_ba_wsize;
+	bool kso_enable;
+	int spect;
 } dhd_conf_t;
 
 extern void *bcmsdh_get_drvdata(void);
+void dhd_conf_set_fw_name_by_mac(dhd_pub_t *dhd, bcmsdh_info_t *sdh, char *fw_path);
+void dhd_conf_set_nv_name_by_mac(dhd_pub_t *dhd, bcmsdh_info_t *sdh, char *nv_path);
 void dhd_conf_set_fw_name_by_chip(dhd_pub_t *dhd, char *dst, char *src);
 #if defined(HW_OOB)
 void dhd_conf_set_hw_oob_intr(bcmsdh_info_t *sdh, uint chip);
+#endif
+#if defined(CUSTOMER_HW) && defined(CONFIG_DHD_USE_STATIC_BUF)
+void* dhd_conf_prealloc(int section, unsigned long size);
 #endif
 void dhd_conf_set_fw_path(dhd_pub_t *dhd, char *fw_path);
 void dhd_conf_set_nv_path(dhd_pub_t *dhd, char *nv_path);
@@ -89,7 +124,7 @@ int dhd_conf_get_country(dhd_pub_t *dhd, wl_country_t *cspec);
 int dhd_conf_fix_country(dhd_pub_t *dhd);
 bool dhd_conf_match_channel(dhd_pub_t *dhd, uint32 channel);
 int dhd_conf_set_roam(dhd_pub_t *dhd);
-void dhd_conf_set_bw(dhd_pub_t *dhd);
+void dhd_conf_set_mimo_bw_cap(dhd_pub_t *dhd);
 void dhd_conf_force_wme(dhd_pub_t *dhd);
 void dhd_conf_get_wme(dhd_pub_t *dhd, edcf_acparam_t *acp);
 void dhd_conf_set_wme(dhd_pub_t *dhd);
@@ -98,7 +133,12 @@ void dhd_conf_set_phyoclscdenable(dhd_pub_t *dhd);
 void dhd_conf_add_pkt_filter(dhd_pub_t *dhd);
 bool dhd_conf_del_pkt_filter(dhd_pub_t *dhd, uint32 id);
 void dhd_conf_discard_pkt_filter(dhd_pub_t *dhd);
-int dhd_conf_download_config(dhd_pub_t *dhd);
+void dhd_conf_set_srl(dhd_pub_t *dhd);
+void dhd_conf_set_lrl(dhd_pub_t *dhd);
+void dhd_conf_set_glom(dhd_pub_t *dhd);
+void dhd_conf_set_ampdu_ba_wsize(dhd_pub_t *dhd);
+void dhd_conf_set_spect(dhd_pub_t *dhd);
+int dhd_conf_read_config(dhd_pub_t *dhd);
 int dhd_conf_preinit(dhd_pub_t *dhd);
 int dhd_conf_attach(dhd_pub_t *dhd);
 void dhd_conf_detach(dhd_pub_t *dhd);

@@ -59,11 +59,82 @@ static int lowmem_minfree_size = 4;
 
 static unsigned long lowmem_deathpending_timeout;
 
+static uint32_t low_kill = 190;// for 512M lowmem device solution
+static uint32_t fast_kill = 0; // for 512M lowmem device 4K-H265 solution
+
+extern unsigned int mem_size;
+static const char lowmem_device_kill_blacklist[][TASK_COMM_LEN] = {
+	/* 512M lowmem device not support app list*/
+	"oid.application",   /* com.futuremark.dmandroid.application */
+	"cation:workload",  /* com.futuremark.dmandroid.application:workload */
+	"mes.EpicCitadel",  /* com.epicgames.EpicCitadel*/
+	"tion.trampoline",	/* aliyun-os game-3d-application*/
+	"action.pingpong",
+	"tion.volleyball",
+	"axa.bombermantv",
+	"os.action.wqtc2",
+};
+
+static const char lowmem_device_whitelist[][TASK_COMM_LEN] = {
+	/* 512M lowmem device not need killable app list*/
+	"com.aliyun.uuid",  /* rss is little and kill it will gives bad experience*/
+	"d.process.media",  /* not need to kill*/
+};
+
+#define ANDROID_HOME_APP_ADJ 6
+#define ANDROID_FAST_KILL_ENABLE 1
+
 #define lowmem_print(level, x...)			\
 	do {						\
 		if (lowmem_debug_level >= (level))	\
 			pr_info(x);			\
 	} while (0)
+static int test_lowmem_device(struct task_struct *p, int cur_oom_score_adj)
+{
+	int i;
+	int tatal_page,cur_maxpage,cur_tasksize = 0;
+	int oom_score_adj,oom_adj;
+
+	if(mem_size > (512<<20))
+		goto out;
+
+	oom_score_adj = p->signal->oom_score_adj;
+	oom_adj = p->signal->oom_adj;
+
+	if (oom_score_adj == 0) {
+		tatal_page = PAGE_ALIGN(mem_size)>>PAGE_SHIFT;
+		cur_maxpage = PAGE_ALIGN(low_kill<<20)>>PAGE_SHIFT;
+		cur_tasksize = get_mm_rss(p->mm);
+		cur_maxpage = (cur_maxpage > (tatal_page/3))?cur_maxpage:(tatal_page/3);
+
+		for (i = 0; i < ARRAY_SIZE(lowmem_device_kill_blacklist); i++)
+			if (strstr(p->comm, lowmem_device_kill_blacklist[i]))
+				goto need_kill;
+
+		if (cur_tasksize >= cur_maxpage)
+			goto need_kill;
+	}
+
+	if (oom_adj == ANDROID_HOME_APP_ADJ) {
+		//if (oom_score_adj > cur_oom_score_adj)
+		//	goto need_kill;
+		if (fast_kill == ANDROID_FAST_KILL_ENABLE) {
+			printk("lmk: fast_kill is 1.\n");
+			fast_kill = 0;
+			goto need_kill;
+		}
+	}
+
+	for (i = 0; i < ARRAY_SIZE(lowmem_device_whitelist); i++)
+			if (strstr(p->comm, lowmem_device_whitelist[i]))
+				goto ignore_kill_check;
+out:
+	return 0;
+need_kill:
+	return 1;
+ignore_kill_check:
+	return -1;
+}
 
 static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 {
@@ -77,6 +148,7 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 	int selected_tasksize = 0;
 	int selected_oom_score_adj;
 	int array_size = ARRAY_SIZE(lowmem_adj);
+	int recheck = 0;
 	int other_free = global_page_state(NR_FREE_PAGES) - totalreserve_pages;
 	int other_file = global_page_state(NR_FILE_PAGES) -
 						global_page_state(NR_SHMEM);
@@ -115,6 +187,10 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 		if (tsk->flags & PF_KTHREAD)
 			continue;
 
+		/* if task no longer has any memory ignore it */
+		if (test_tsk_thread_flag(tsk, TIF_MM_RELEASED))
+			continue;
+
 		p = find_lock_task_mm(tsk);
 		if (!p)
 			continue;
@@ -126,6 +202,19 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 			return 0;
 		}
 		oom_score_adj = p->signal->oom_score_adj;
+		recheck = test_lowmem_device(p, selected_oom_score_adj);
+		if (recheck > 0) {
+			selected = p;
+			selected_tasksize = get_mm_rss(p->mm);
+			selected_oom_score_adj = oom_score_adj;
+			task_unlock(p);
+			lowmem_print(1, "'%s' (%d), adj %d, page size %d, rss more than lowram limit\n",
+					p->comm, p->pid, oom_score_adj, selected_tasksize);
+			break;
+		} else if (recheck < 0) {
+			task_unlock(p);
+			continue;
+		}
 		if (oom_score_adj < min_score_adj) {
 			task_unlock(p);
 			continue;
@@ -278,6 +367,8 @@ module_param_array_named(adj, lowmem_adj, int, &lowmem_adj_size,
 module_param_array_named(minfree, lowmem_minfree, uint, &lowmem_minfree_size,
 			 S_IRUGO | S_IWUSR);
 module_param_named(debug_level, lowmem_debug_level, uint, S_IRUGO | S_IWUSR);
+module_param_named(low_kill, low_kill, uint, S_IRUGO | S_IWUSR);
+module_param_named(fast_kill, fast_kill, uint, S_IRUGO | S_IWUSR);
 
 module_init(lowmem_init);
 module_exit(lowmem_exit);

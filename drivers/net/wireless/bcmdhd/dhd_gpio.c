@@ -34,16 +34,15 @@
 int bcm_wlan_get_oob_irq(void)
 {
 	int host_oob_irq = 0;
-	int ret = 0;
 	int wl_host_wake = 0;
 	script_item_u val ;
 	script_item_value_type_e type;
 	
 	printk("bcm_wlan_get_oob_irq enter.\n");
 	
-	type = script_get_item("wifi_para", "ap6xxx_wl_host_wake", &val);
+	type = script_get_item("wifi_para", "wl_host_wake", &val);
 	if (SCIRPT_ITEM_VALUE_TYPE_PIO!=type) 
-		printk("get bcmdhd ap6xxx_wl_host_wake gpio failed\n");
+		printk("get bcmdhd wl_host_wake gpio failed\n");
 	else
 		wl_host_wake = val.gpio.gpio;
 		

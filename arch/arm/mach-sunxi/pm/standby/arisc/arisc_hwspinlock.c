@@ -20,6 +20,7 @@
  */
 
 #include "standby_arisc_i.h"
+#include "./../../mem_hwspinlock.h"
 
 /*
 *********************************************************************************************************
@@ -67,7 +68,7 @@ int arisc_hwspinlock_exit(void)
 int arisc_hwspin_lock_timeout(int hwid, unsigned int timeout)
 {
 	//try to take spinlock
-	while (readl(IO_ADDRESS(AW_SPINLOCK_LOCK_REG(hwid))) == AW_SPINLOCK_TAKEN) {
+	while (readl(IO_ADDRESS(MEM_SPINLOCK_LOCK_REG(hwid))) == MEM_SPINLOCK_TAKEN) {
 		/*
 		 * The lock is already taken, let's check if the user wants
 		 * us to try again
@@ -92,7 +93,7 @@ int arisc_hwspin_lock_timeout(int hwid, unsigned int timeout)
 int arisc_hwspin_unlock(int hwid)
 {
 	//untaken the spinlock
-	writel(0x0, IO_ADDRESS(AW_SPINLOCK_LOCK_REG(hwid)));
+	writel(0x0, IO_ADDRESS(MEM_SPINLOCK_LOCK_REG(hwid)));
 		
 	return 0;
 }

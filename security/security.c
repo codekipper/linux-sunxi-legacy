@@ -19,6 +19,7 @@
 #include <linux/integrity.h>
 #include <linux/ima.h>
 #include <linux/evm.h>
+#include <linux/fivm.h>
 #include <linux/fsnotify.h>
 #include <net/flow.h>
 
@@ -686,6 +687,11 @@ int security_file_mmap(struct file *file, unsigned long reqprot,
 	ret = security_ops->file_mmap(file, reqprot, prot, flags, addr, addr_only);
 	if (ret)
 		return ret;
+
+	ret = fivm_mmap_verify(file, prot) ;
+	if(ret)
+		return ret ;
+
 	return ima_file_mmap(file, prot);
 }
 

@@ -191,11 +191,12 @@ static inline void sunxi_idle_cluster_die(unsigned int cluster)
 	asm("mrc    p15, 0, %0, c1, c0, 1" : "=r" (actlr) );
 	actlr &= ~(1<<6);
 	asm("mcr    p15, 0, %0, c1, c0, 1\n" : : "r" (actlr));
+#if (defined CONFIG_ARCH_SUN8IW6P1) || (defined CONFIG_ARCH_SUN9IW1P1)
 	__mcpm_outbound_leave_critical(cluster, CLUSTER_DOWN);
 
 	/* disable cluster cci snoop */
 	disable_cci_snoops(cluster);
-
+#endif
 	/* step5: execute an ISB instruction */
 	isb();
 

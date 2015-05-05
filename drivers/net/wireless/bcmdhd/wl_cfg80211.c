@@ -3742,6 +3742,11 @@ wl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	}
 	err = wldev_iovar_setbuf_bsscfg(dev, "join", ext_join_params, join_params_size,
 		wl->ioctl_buf, WLC_IOCTL_MAXLEN, bssidx, &wl->ioctl_buf_sync);
+
+	printk("Connectting with " MACDBG " channel (%d) ssid \"%s\", len (%d)\n\n",
+		MAC2STRDBG((u8*)(&ext_join_params->assoc.bssid)), wl->channel,
+		ext_join_params->ssid.SSID, ext_join_params->ssid.SSID_len);
+
 	kfree(ext_join_params);
 	if (err) {
 		wl_clr_drv_status(wl, CONNECTING, dev);
@@ -7190,12 +7195,11 @@ static s32 wl_inform_bss(struct wl_priv *wl)
 	bss_list = wl->bss_list;
 
 #if defined(BSSCACHE)
-	if (g_bss_cache_ctrl.m_timer_expired || (p2p_is_on(wl) && p2p_scan(wl))) {
+	if (p2p_is_on(wl) && p2p_scan(wl)) {
 #if defined(RSSIAVG)
 		wl_free_rssi_cache(&g_rssi_cache_ctrl);
 #endif
 		wl_free_bss_cache(&g_bss_cache_ctrl);
-		g_bss_cache_ctrl.m_timer_expired ^= 1;
 	}
 	wl_update_bss_cache(&g_bss_cache_ctrl, bss_list);
 	wl_delete_dirty_bss_cache(&g_bss_cache_ctrl);
@@ -7236,8 +7240,6 @@ static s32 wl_inform_bss(struct wl_priv *wl)
 		}
 		node = node->next;
 	}
-	wl_run_bss_cache_timer(&g_bss_cache_ctrl, 0);
-	wl_run_bss_cache_timer(&g_bss_cache_ctrl, 1);
 	bi = NULL;
 #endif
 
@@ -8853,6 +8855,12 @@ static void wl_deinit_priv_mem(struct wl_priv *wl)
 		wl->afx_hdl = NULL;
 	}
 
+	// terence 20140506: fix kernel panic when driver(.ko) is removing but the work not yet to canceled by kernel
+	if (wl->pm_enable_work_on) {
+		cancel_delayed_work_sync(&wl->pm_enable_work);
+		wl->pm_enable_work_on = false;
+	}
+
 	if (wl->ap_info) {
 		kfree(wl->ap_info->wpa_ie);
 		kfree(wl->ap_info->rsn_ie);
@@ -9077,9 +9085,11 @@ static void wl_scan_timeout(unsigned long data)
 		WL_ERR(("SCAN Timeout(ISCAN)\n"));
 		wl_notify_iscan_complete(wl_to_iscan(wl), true);
 	}
-	// terence 20130729: work around to fix out of memory in firmware
-	WL_ERR(("Send hang event\n"));
-	net_os_send_hang_message(ndev);
+	// terence 20130729: workaround to fix out of memory in firmware
+	if (dhd_bus_chip_id(bcmsdh_get_drvdata()) == BCM43362_CHIP_ID) {
+		WL_ERR(("Send hang event\n"));
+		net_os_send_hang_message(ndev);
+	}
 }
 
 static void wl_iscan_timer(unsigned long data)
@@ -10047,10 +10057,6 @@ s32 wl_cfg80211_attach(struct net_device *ndev, void *data)
 	err = wl_cfg80211_btcoex_init(wl);
 	if (err)
 		goto cfg80211_attach_out;
-#endif 
-#if defined(BSSCACHE)
-	if (wl_init_bss_cache_ctrl(&g_bss_cache_ctrl))
-		goto cfg80211_attach_out;
 #endif
 
 	wlcfg_drv_priv = wl;
@@ -10921,7 +10927,6 @@ int wl_cfg80211_hang(struct net_device *dev, u16 reason)
 #endif
 #if defined(BSSCACHE)
 	wl_free_bss_cache(&g_bss_cache_ctrl);
-	wl_run_bss_cache_timer(&g_bss_cache_ctrl, 0);
 #endif
 	if (wl != NULL) {
 		wl_link_down(wl);
@@ -10943,7 +10948,6 @@ s32 wl_cfg80211_down(void *para)
 #endif
 #if defined(BSSCACHE)
 	wl_free_bss_cache(&g_bss_cache_ctrl);
-	wl_run_bss_cache_timer(&g_bss_cache_ctrl, 0);
 #endif
 	err = __wl_cfg80211_down(wl);
 	mutex_unlock(&wl->usr_sync);
@@ -13114,7 +13118,6 @@ void wl_cfg80211_stop(void)
 #endif
 #if defined(BSSCACHE)
 	wl_free_bss_cache(&g_bss_cache_ctrl);
-	wl_run_bss_cache_timer(&g_bss_cache_ctrl, 0);
 #endif
 }
 
@@ -13193,10 +13196,6 @@ s32 wl_cfg80211_down2(void *para)
 
 #if defined(RSSIAVG)
 	wl_free_rssi_cache(&g_rssi_cache_ctrl);
-#endif
-#if defined(BSSCACHE)
-	wl_free_bss_cache(&g_bss_cache_ctrl);
-	wl_run_bss_cache_timer(&g_bss_cache_ctrl, 0);
 #endif
 	err = __wl_cfg80211_down(wl);
 

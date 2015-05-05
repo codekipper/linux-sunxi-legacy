@@ -615,7 +615,7 @@ static int ir_fetch_sysconfig_para(enum input_sensor_type *ir_type)
 		}
 		data->ir_gpio = val.gpio;
 
-		type = script_get_item("s_cir0", "ir_power_key_code", &val);
+		type = script_get_item("s_cir0", "ir_power_key_code0", &val);
 		if(SCIRPT_ITEM_VALUE_TYPE_INT != type){
 			pr_err("%s: IR power key type err! \n", __func__);
 		}

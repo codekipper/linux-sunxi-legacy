@@ -117,7 +117,7 @@ static unsigned int parse_group_bitmap(char *s, unsigned int size, unsigned int 
     return (s - start);
 }
 
-unsigned int parse_wakeup_event(char *s, unsigned int size, unsigned int event)
+unsigned int parse_wakeup_event(char *s, unsigned int size, unsigned int event, event_cpu_id_e cpu_id)
 {
     int i = 0;
     int count = 0;
@@ -137,42 +137,69 @@ unsigned int parse_wakeup_event(char *s, unsigned int size, unsigned int event)
     }
 
     uk_printf(s, end - s, "WAKEUP_SRC is as follow: \n");
+    //for cpus parse.
+    if(CPUS_ID == cpu_id){
+	for(i=0; i<32; i++){
+	    bit_event = (1<<i & event);
+	    switch(bit_event){
+		case 0			    : break;
+		case CPU0_WAKEUP_MSGBOX         : uk_printf(s, end - s, "%-36s bit 0x%x \t ", "CPU0_WAKEUP_MSGBOX   ", CPU0_WAKEUP_MSGBOX   ); count++;    break;
+		case CPU0_WAKEUP_KEY	    : uk_printf(s, end - s, "%-36s bit 0x%x \t ", "CPU0_WAKEUP_KEY      ", CPU0_WAKEUP_KEY      ); count++;    break;
+		case CPUS_WAKEUP_LOWBATT	    : uk_printf(s, end - s, "%-36s bit 0x%x \t ", "CPUS_WAKEUP_LOWBATT  ", CPUS_WAKEUP_LOWBATT  ); count++;    break; 
+		case CPUS_WAKEUP_USB            : uk_printf(s, end - s, "%-36s bit 0x%x \t ", "CPUS_WAKEUP_USB      ", CPUS_WAKEUP_USB      ); count++;    break; 
+		case CPUS_WAKEUP_AC             : uk_printf(s, end - s, "%-36s bit 0x%x \t ", "CPUS_WAKEUP_AC       ", CPUS_WAKEUP_AC       ); count++;    break; 
+		case CPUS_WAKEUP_ASCEND         : uk_printf(s, end - s, "%-36s bit 0x%x \t ", "CPUS_WAKEUP_ASCEND   ", CPUS_WAKEUP_ASCEND   ); count++;    break; 
+		case CPUS_WAKEUP_DESCEND        : uk_printf(s, end - s, "%-36s bit 0x%x \t ", "CPUS_WAKEUP_DESCEND  ", CPUS_WAKEUP_DESCEND  ); count++;    break; 
+		case CPUS_WAKEUP_SHORT_KEY      : uk_printf(s, end - s, "%-36s bit 0x%x \t ", "CPUS_WAKEUP_SHORT_KEY", CPUS_WAKEUP_SHORT_KEY); count++;    break; 
+		case CPUS_WAKEUP_LONG_KEY       : uk_printf(s, end - s, "%-36s bit 0x%x \t ", "CPUS_WAKEUP_LONG_KEY ", CPUS_WAKEUP_LONG_KEY ); count++;    break; 
+		case CPUS_WAKEUP_IR             : uk_printf(s, end - s, "%-36s bit 0x%x \t ", "CPUS_WAKEUP_IR       ", CPUS_WAKEUP_IR       ); count++;    break; 
+		case CPUS_WAKEUP_ALM0           : uk_printf(s, end - s, "%-36s bit 0x%x \t ", "CPUS_WAKEUP_ALM0     ", CPUS_WAKEUP_ALM0     ); count++;    break; 
+		case CPUS_WAKEUP_ALM1           : uk_printf(s, end - s, "%-36s bit 0x%x \t ", "CPUS_WAKEUP_ALM1     ", CPUS_WAKEUP_ALM1     ); count++;    break; 
+		case CPUS_WAKEUP_TIMEOUT        : uk_printf(s, end - s, "%-36s bit 0x%x \t ", "CPUS_WAKEUP_TIMEOUT  ", CPUS_WAKEUP_TIMEOUT  ); count++;    break; 
+		case CPUS_WAKEUP_GPIO           :
+						  uk_printf(s, end - s, "\n%-36s bit 0x%x \t ", "CPUS_WAKEUP_GPIO	", CPUS_WAKEUP_GPIO     ); 
+						  uk_printf(s, end - s, "\n\twant to know gpio config & suspended status detail? \n\t\tcat /sys/power/aw_pm/debug_mask for help.\n");
+						  count++;    
+						  break; 
+		case CPUS_WAKEUP_USBMOUSE       : uk_printf(s, end -s, "%-36s bit 0x%x \t ", "CPUS_WAKEUP_USBMOUSE ", CPUS_WAKEUP_USBMOUSE ); count++;    break; 
+		case CPUS_WAKEUP_LRADC          : uk_printf(s, end -s, "%-36s bit 0x%x \t ", "CPUS_WAKEUP_LRADC    ", CPUS_WAKEUP_LRADC    ); count++;    break; 
+		case CPUS_WAKEUP_CODEC          : uk_printf(s, end -s, "%-36s bit 0x%x \t ", "CPUS_WAKEUP_CODEC    ", CPUS_WAKEUP_CODEC    ); count++;    break; 
+		case CPUS_WAKEUP_BAT_TEMP       : uk_printf(s, end -s, "%-36s bit 0x%x \t ", "CPUS_WAKEUP_BAT_TEMP ", CPUS_WAKEUP_BAT_TEMP ); count++;    break; 
+		case CPUS_WAKEUP_FULLBATT       : uk_printf(s, end -s, "%-36s bit 0x%x \t ", "CPUS_WAKEUP_FULLBATT ", CPUS_WAKEUP_FULLBATT ); count++;    break; 
+		case CPUS_WAKEUP_HMIC           : uk_printf(s, end -s, "%-36s bit 0x%x \t ", "CPUS_WAKEUP_HMIC     ", CPUS_WAKEUP_HMIC     ); count++;    break; 
+		case CPUS_WAKEUP_POWER_EXP      : uk_printf(s, end -s, "%-36s bit 0x%x \t ", "CPUS_WAKEUP_POWER_EXP", CPUS_WAKEUP_POWER_EXP); count++;    break;
+		default:								break;
 
-    for(i=0; i<32; i++){
-	bit_event = (1<<i & event);
-	switch(bit_event){
-	    case 0			    : break;
-	    case CPU0_WAKEUP_MSGBOX         : uk_printf(s, end - s, "%-36s bit 0x%x \t ", "CPU0_WAKEUP_MSGBOX   ", CPU0_WAKEUP_MSGBOX   ); count++;    break;
-	    case CPU0_WAKEUP_KEY	    : uk_printf(s, end - s, "%-36s bit 0x%x \t ", "CPU0_WAKEUP_KEY      ", CPU0_WAKEUP_KEY      ); count++;    break;
-	    case CPUS_WAKEUP_LOWBATT	    : uk_printf(s, end - s, "%-36s bit 0x%x \t ", "CPUS_WAKEUP_LOWBATT  ", CPUS_WAKEUP_LOWBATT  ); count++;    break; 
-	    case CPUS_WAKEUP_USB            : uk_printf(s, end - s, "%-36s bit 0x%x \t ", "CPUS_WAKEUP_USB      ", CPUS_WAKEUP_USB      ); count++;    break; 
-	    case CPUS_WAKEUP_AC             : uk_printf(s, end - s, "%-36s bit 0x%x \t ", "CPUS_WAKEUP_AC       ", CPUS_WAKEUP_AC       ); count++;    break; 
-	    case CPUS_WAKEUP_ASCEND         : uk_printf(s, end - s, "%-36s bit 0x%x \t ", "CPUS_WAKEUP_ASCEND   ", CPUS_WAKEUP_ASCEND   ); count++;    break; 
-	    case CPUS_WAKEUP_DESCEND        : uk_printf(s, end - s, "%-36s bit 0x%x \t ", "CPUS_WAKEUP_DESCEND  ", CPUS_WAKEUP_DESCEND  ); count++;    break; 
-	    case CPUS_WAKEUP_SHORT_KEY      : uk_printf(s, end - s, "%-36s bit 0x%x \t ", "CPUS_WAKEUP_SHORT_KEY", CPUS_WAKEUP_SHORT_KEY); count++;    break; 
-	    case CPUS_WAKEUP_LONG_KEY       : uk_printf(s, end - s, "%-36s bit 0x%x \t ", "CPUS_WAKEUP_LONG_KEY ", CPUS_WAKEUP_LONG_KEY ); count++;    break; 
-	    case CPUS_WAKEUP_IR             : uk_printf(s, end - s, "%-36s bit 0x%x \t ", "CPUS_WAKEUP_IR       ", CPUS_WAKEUP_IR       ); count++;    break; 
-	    case CPUS_WAKEUP_ALM0           : uk_printf(s, end - s, "%-36s bit 0x%x \t ", "CPUS_WAKEUP_ALM0     ", CPUS_WAKEUP_ALM0     ); count++;    break; 
-	    case CPUS_WAKEUP_ALM1           : uk_printf(s, end - s, "%-36s bit 0x%x \t ", "CPUS_WAKEUP_ALM1     ", CPUS_WAKEUP_ALM1     ); count++;    break; 
-	    case CPUS_WAKEUP_TIMEOUT        : uk_printf(s, end - s, "%-36s bit 0x%x \t ", "CPUS_WAKEUP_TIMEOUT  ", CPUS_WAKEUP_TIMEOUT  ); count++;    break; 
-	    case CPUS_WAKEUP_GPIO           :
-					      uk_printf(s, end - s, "\n%-36s bit 0x%x \t ", "CPUS_WAKEUP_GPIO	", CPUS_WAKEUP_GPIO     ); 
+	    }
+	    if(counted != count && 0 == count%2){
+		counted = count;
+		uk_printf(s, end-s, "\n");
+	    }
+	}
+    }else if(CPU0_ID == cpu_id){  //for cpu0 wakeup src parse.
+	for(i=0; i<32; i++){
+	    bit_event = (1<<i & event);
+	    switch(bit_event){
+		case 0			    : break;
+		case CPU0_WAKEUP_MSGBOX     : uk_printf(s, end - s, "%-36s bit 0x%x \t ", "CPU0_WAKEUP_MSGBOX ",   CPU0_WAKEUP_MSGBOX ); count++;    break;
+		case CPU0_WAKEUP_KEY	    : uk_printf(s, end - s, "%-36s bit 0x%x \t ", "CPU0_WAKEUP_KEY	", CPU0_WAKEUP_KEY	); count++;    break;
+		case CPU0_WAKEUP_EXINT	    : uk_printf(s, end - s, "%-36s bit 0x%x \t ", "CPU0_WAKEUP_EXINT	", CPU0_WAKEUP_EXINT	); count++;    break; 
+		case CPU0_WAKEUP_IR	    : uk_printf(s, end - s, "%-36s bit 0x%x \t ", "CPU0_WAKEUP_IR	", CPU0_WAKEUP_IR	); count++;    break; 
+		case CPU0_WAKEUP_ALARM	    : uk_printf(s, end - s, "%-36s bit 0x%x \t ", "CPU0_WAKEUP_ALARM	", CPU0_WAKEUP_ALARM	); count++;    break; 
+		case CPU0_WAKEUP_USB	    : uk_printf(s, end - s, "%-36s bit 0x%x \t ", "CPU0_WAKEUP_USB	", CPU0_WAKEUP_USB	); count++;    break; 
+		case CPU0_WAKEUP_TIMEOUT    : uk_printf(s, end - s, "%-36s bit 0x%x \t ", "CPU0_WAKEUP_TIMEOUT",   CPU0_WAKEUP_TIMEOUT); count++;    break; 
+		case CPU0_WAKEUP_PIO	    :                                              
+					      uk_printf(s, end - s, "\n%-36s bit 0x%x \t ", "CPU0_WAKEUP_PIO	", CPU0_WAKEUP_PIO     ); 
 					      uk_printf(s, end - s, "\n\twant to know gpio config & suspended status detail? \n\t\tcat /sys/power/aw_pm/debug_mask for help.\n");
 					      count++;    
 					      break; 
-	    case CPUS_WAKEUP_USBMOUSE       : uk_printf(s, end -s, "%-36s bit 0x%x \t ", "CPUS_WAKEUP_USBMOUSE ", CPUS_WAKEUP_USBMOUSE ); count++;    break; 
-	    case CPUS_WAKEUP_LRADC          : uk_printf(s, end -s, "%-36s bit 0x%x \t ", "CPUS_WAKEUP_LRADC    ", CPUS_WAKEUP_LRADC    ); count++;    break; 
-	    case CPUS_WAKEUP_CODEC          : uk_printf(s, end -s, "%-36s bit 0x%x \t ", "CPUS_WAKEUP_CODEC    ", CPUS_WAKEUP_CODEC    ); count++;    break; 
-	    case CPUS_WAKEUP_BAT_TEMP       : uk_printf(s, end -s, "%-36s bit 0x%x \t ", "CPUS_WAKEUP_BAT_TEMP ", CPUS_WAKEUP_BAT_TEMP ); count++;    break; 
-	    case CPUS_WAKEUP_FULLBATT       : uk_printf(s, end -s, "%-36s bit 0x%x \t ", "CPUS_WAKEUP_FULLBATT ", CPUS_WAKEUP_FULLBATT ); count++;    break; 
-	    case CPUS_WAKEUP_HMIC           : uk_printf(s, end -s, "%-36s bit 0x%x \t ", "CPUS_WAKEUP_HMIC     ", CPUS_WAKEUP_HMIC     ); count++;    break; 
-	    case CPUS_WAKEUP_POWER_EXP      : uk_printf(s, end -s, "%-36s bit 0x%x \t ", "CPUS_WAKEUP_POWER_EXP", CPUS_WAKEUP_POWER_EXP); count++;    break;
-	    default:								break;
+		default:		    break;
 
-	}
-	if(counted != count && 0 == count%2){
-	    counted = count;
-	    uk_printf(s, end-s, "\n");
+	    }
+	    if(counted != count && 0 == count%2){
+		counted = count;
+		uk_printf(s, end-s, "\n");
+	    }
 	}
     }
 

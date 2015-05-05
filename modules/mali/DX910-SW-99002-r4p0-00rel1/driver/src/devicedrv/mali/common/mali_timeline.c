@@ -23,7 +23,7 @@ static mali_scheduler_mask mali_timeline_system_release_waiter(struct mali_timel
 
 #if defined(CONFIG_SYNC)
 #include <linux/version.h>
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,5,0)
+#if 0 /*LINUX_VERSION_CODE < KERNEL_VERSION(3,5,0)*/
 #include <linux/list.h>
 #include <linux/workqueue.h>
 #include <linux/spinlock.h>
@@ -98,7 +98,7 @@ static void mali_timeline_sync_fence_callback(struct sync_fence *sync_fence, str
 
 	mali_spinlock_reentrant_signal(system->spinlock, tid);
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,5,0)
+#if 0 /*LINUX_VERSION_CODE < KERNEL_VERSION(3,5,0)*/
 	{
 		struct mali_deferred_fence_put_entry *obj;
 

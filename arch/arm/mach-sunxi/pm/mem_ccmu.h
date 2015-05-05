@@ -58,7 +58,13 @@ struct ccm_state{
 	__ccmu_mod_reg_list_t		ccm_mod_reg_backup;
 	
 };
+#elif defined CONFIG_ARCH_SUN8IW8P1
+#include "mem_ccmu-sun8iw8p1.h"
+struct ccm_state{
+	__ccmu_reg_list_t	*ccm_reg;
+	__ccmu_reg_list_t	ccm_reg_backup;
 
+};
 #else
 #error "please select a platform\n"
 #endif

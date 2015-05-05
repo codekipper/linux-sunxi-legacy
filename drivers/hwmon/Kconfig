@@ -1487,4 +1487,11 @@ config SENSORS_INA219_ACCUMULATE
 	  This driver accumulate power of ina219 with sample interval 100ms as default.
 endif # I2C
 
+config SENSORS_DUMMY_ACC
+       tristate "dummy Orientation/Motion Detection Sensor Support"
+       default m
+       help
+         If you say yes here you get support for the virtual
+         Orientation/Motion Detection Sensor.
+
 endif # HWMON

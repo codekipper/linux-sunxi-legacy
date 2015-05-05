@@ -81,7 +81,7 @@ int platform_wifi_power_on(void)
 	}
 
 #ifdef CONFIG_GPIO_WAKEUP
-	type = script_get_item("wifi_para", "rtl8723bs_wl_host_wake", &val);
+	type = script_get_item("wifi_para", "wl_host_wake", &val);
 	if (SCIRPT_ITEM_VALUE_TYPE_PIO != type) {
 		DBG_871X("has no rtl8723bs_wl_wake_host\n");
 		ret = -1;

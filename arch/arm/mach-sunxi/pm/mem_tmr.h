@@ -82,6 +82,7 @@ __s32 mem_tmr_init(void);
 __s32 mem_tmr_exit(void);
 void mem_tmr_enable_watchdog(void);
 void mem_tmr_disable_watchdog(void);
+__s32 mem_tmr_set(__u32 second);
 
 #endif  //__MEM_TMR_H__
 

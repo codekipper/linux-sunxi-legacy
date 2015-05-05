@@ -45,6 +45,8 @@
 #include <linux/power/axp_depend.h>
 #include <linux/power/scenelock.h>
 #include "../../../../kernel/power/power.h"
+#include <asm/firmware.h>
+#include <mach/sunxi-smc.h>
 
 static struct kobject *aw_pm_kobj;
 
@@ -125,7 +127,6 @@ static struct clk_state saved_clk_state;
 static __mem_tmr_reg_t saved_tmr_state;
 static struct twi_state saved_twi_state;
 static struct gpio_state saved_gpio_state;
-static struct sram_state saved_sram_state;
 static struct ccm_state  saved_ccm_state;
 
 #ifdef CONFIG_ARCH_SUN9IW1P1
@@ -134,7 +135,17 @@ static struct gtbus_state saved_gtbus_state;
 #endif
 
 #if defined(CONFIG_ARCH_SUN9IW1P1) || defined(CONFIG_ARCH_SUN8IW6P1)
+#ifndef CONFIG_SUNXI_TRUSTZONE
 static __mem_tmstmp_reg_t saved_tmstmp_state;
+#endif
+#endif
+
+#ifndef CONFIG_SUNXI_TRUSTZONE
+static struct sram_state saved_sram_state;
+#endif
+
+#if (defined(CONFIG_ARCH_SUN8IW8P1) || defined(CONFIG_ARCH_SUN8IW6P1)) && defined(CONFIG_AW_AXP)
+static int config_sys_pwr(void);
 #endif
 
 #ifdef GET_CYCLE_CNT
@@ -196,21 +207,21 @@ static char *parse_debug_mask(unsigned int bitmap, char *s, char *end)
     for(i=0; i<32; i++){
 	bit_event = (1<<i & bitmap);
 	switch(bit_event){
-	    case 0				  : break;
-	    case PM_STANDBY_PRINT_STANDBY	  : s += scnprintf(s, end-s, "%-34s bit 0x%x\t", "PM_STANDBY_PRINT_STANDBY         ", PM_STANDBY_PRINT_STANDBY	  ); count++; break;  	 
-	    case PM_STANDBY_PRINT_RESUME	  : s += scnprintf(s, end-s, "%-34s bit 0x%x\t", "PM_STANDBY_PRINT_RESUME          ", PM_STANDBY_PRINT_RESUME	  ); count++; break; 
-    	    case PM_STANDBY_ENABLE_JTAG		  : s += scnprintf(s, end-s, "%-34s bit 0x%x\t", "PM_STANDBY_ENABLE_JTAG           ", PM_STANDBY_ENABLE_JTAG	  ); count++; break; 	
-    	    case PM_STANDBY_PRINT_PORT		  : s += scnprintf(s, end-s, "%-34s bit 0x%x\t", "PM_STANDBY_PRINT_PORT            ", PM_STANDBY_PRINT_PORT	  ); count++; break;    
-    	    case PM_STANDBY_PRINT_IO_STATUS 	  : s += scnprintf(s, end-s, "%-34s bit 0x%x\t", "PM_STANDBY_PRINT_IO_STATUS       ", PM_STANDBY_PRINT_IO_STATUS  ); count++; break; 
-    	    case PM_STANDBY_PRINT_CACHE_TLB_MISS  : s += scnprintf(s, end-s, "%-34s bit 0x%x\t", "PM_STANDBY_PRINT_CACHE_TLB_MISS  ", PM_STANDBY_PRINT_CACHE_TLB_MISS); count++; break;  
-    	    case PM_STANDBY_PRINT_CCU_STATUS 	  : s += scnprintf(s, end-s, "%-34s bit 0x%x\t", "PM_STANDBY_PRINT_CCU_STATUS      ", PM_STANDBY_PRINT_CCU_STATUS  ); count++; break;   
-    	    case PM_STANDBY_PRINT_PWR_STATUS 	  : s += scnprintf(s, end-s, "%-34s bit 0x%x\t", "PM_STANDBY_PRINT_PWR_STATUS      ", PM_STANDBY_PRINT_PWR_STATUS  ); count++; break;   
-    	    case PM_STANDBY_PRINT_CPUS_IO_STATUS  : s += scnprintf(s, end-s, "%-34s bit 0x%x\t", "PM_STANDBY_PRINT_CPUS_IO_STATUS  ", PM_STANDBY_PRINT_CPUS_IO_STATUS); count++; break; 
-    	    case PM_STANDBY_PRINT_CCI400_REG	  : s += scnprintf(s, end-s, "%-34s bit 0x%x\t", "PM_STANDBY_PRINT_CCI400_REG      ", PM_STANDBY_PRINT_CCI400_REG   ); count++; break;
-	    case PM_STANDBY_PRINT_GTBUS_REG	  : s += scnprintf(s, end-s, "%-34s bit 0x%x\t", "PM_STANDBY_PRINT_GTBUS_REG       ", PM_STANDBY_PRINT_GTBUS_REG  ); count++; break;
-    	    case PM_STANDBY_TEST		  : s += scnprintf(s, end-s, "%-34s bit 0x%x\t", "PM_STANDBY_TEST                  ", PM_STANDBY_TEST		  ); count++; break;     
-    	    case PM_STANDBY_PRINT_RESUME_IO_STATUS: s += scnprintf(s, end-s, "%-34s bit 0x%x\t", "PM_STANDBY_PRINT_RESUME_IO_STATUS", PM_STANDBY_PRINT_RESUME_IO_STATUS); count++; break;
-	    default				  : break;
+	case 0				  : break;
+	case PM_STANDBY_PRINT_STANDBY	  : s += scnprintf(s, end-s, "%-34s bit 0x%x\t", "PM_STANDBY_PRINT_STANDBY         ", PM_STANDBY_PRINT_STANDBY	  ); count++; break;
+	case PM_STANDBY_PRINT_RESUME	  : s += scnprintf(s, end-s, "%-34s bit 0x%x\t", "PM_STANDBY_PRINT_RESUME          ", PM_STANDBY_PRINT_RESUME	  ); count++; break;
+	case PM_STANDBY_ENABLE_JTAG		  : s += scnprintf(s, end-s, "%-34s bit 0x%x\t", "PM_STANDBY_ENABLE_JTAG           ", PM_STANDBY_ENABLE_JTAG	  ); count++; break;
+	case PM_STANDBY_PRINT_PORT		  : s += scnprintf(s, end-s, "%-34s bit 0x%x\t", "PM_STANDBY_PRINT_PORT            ", PM_STANDBY_PRINT_PORT	  ); count++; break;
+	case PM_STANDBY_PRINT_IO_STATUS 	  : s += scnprintf(s, end-s, "%-34s bit 0x%x\t", "PM_STANDBY_PRINT_IO_STATUS       ", PM_STANDBY_PRINT_IO_STATUS  ); count++; break;
+	case PM_STANDBY_PRINT_CACHE_TLB_MISS  : s += scnprintf(s, end-s, "%-34s bit 0x%x\t", "PM_STANDBY_PRINT_CACHE_TLB_MISS  ", PM_STANDBY_PRINT_CACHE_TLB_MISS); count++; break;
+	case PM_STANDBY_PRINT_CCU_STATUS 	  : s += scnprintf(s, end-s, "%-34s bit 0x%x\t", "PM_STANDBY_PRINT_CCU_STATUS      ", PM_STANDBY_PRINT_CCU_STATUS  ); count++; break;
+	case PM_STANDBY_PRINT_PWR_STATUS 	  : s += scnprintf(s, end-s, "%-34s bit 0x%x\t", "PM_STANDBY_PRINT_PWR_STATUS      ", PM_STANDBY_PRINT_PWR_STATUS  ); count++; break;
+	case PM_STANDBY_PRINT_CPUS_IO_STATUS  : s += scnprintf(s, end-s, "%-34s bit 0x%x\t", "PM_STANDBY_PRINT_CPUS_IO_STATUS  ", PM_STANDBY_PRINT_CPUS_IO_STATUS); count++; break;
+	case PM_STANDBY_PRINT_CCI400_REG	  : s += scnprintf(s, end-s, "%-34s bit 0x%x\t", "PM_STANDBY_PRINT_CCI400_REG      ", PM_STANDBY_PRINT_CCI400_REG   ); count++; break;
+	case PM_STANDBY_PRINT_GTBUS_REG	  : s += scnprintf(s, end-s, "%-34s bit 0x%x\t", "PM_STANDBY_PRINT_GTBUS_REG       ", PM_STANDBY_PRINT_GTBUS_REG  ); count++; break;
+	case PM_STANDBY_TEST		  : s += scnprintf(s, end-s, "%-34s bit 0x%x\t", "PM_STANDBY_TEST                  ", PM_STANDBY_TEST		  ); count++; break;
+	case PM_STANDBY_PRINT_RESUME_IO_STATUS: s += scnprintf(s, end-s, "%-34s bit 0x%x\t", "PM_STANDBY_PRINT_RESUME_IO_STATUS", PM_STANDBY_PRINT_RESUME_IO_STATUS); count++; break;
+	default				  : break;
 	
 	}
 	if(counted != count && 0 == count%2){
@@ -301,7 +312,41 @@ static ssize_t debug_mask_store(struct device *dev,
     return count;
 }
 
-#ifdef CONFIG_ARCH_SUN8IW6P1
+#if (defined(CONFIG_ARCH_SUN8IW8P1) || defined(CONFIG_ARCH_SUN8IW6P1)) && defined(CONFIG_AW_AXP)
+static unsigned int pwr_dm_mask_saved = 0;
+static int save_sys_pwr_state(const char *id)
+{
+	int bitmap = 0;
+
+	bitmap = is_sys_pwr_dm_id(id);
+	if ((-1) != bitmap) {
+		pwr_dm_mask_saved |= (0x1 << bitmap);
+	} else {
+		pm_printk(PM_STANDBY_PRINT_PWR_STATUS, KERN_INFO "%s: is not sys \n", id);
+	}
+	return 0;
+}
+
+static int resume_sys_pwr_state(void)
+{
+	int i = 0, ret = -1;
+	char *sys_name = NULL;
+
+	for (i=0; i<32; i++) {
+		if (pwr_dm_mask_saved & (0x1 << i)) {
+			sys_name = get_sys_pwr_dm_id(i);
+			if (NULL != sys_name) {
+				ret = add_sys_pwr_dm(sys_name);
+				if (ret < 0) {
+					pm_printk(PM_STANDBY_PRINT_PWR_STATUS, KERN_INFO "%s: resume failed \n", sys_name);
+				}
+			}
+		}
+	}
+	pwr_dm_mask_saved = 0;
+	return 0;
+}
+
 static int check_sys_pwr_dm_status(char *pwr_dm)
 {
     char  ldo_name[20] = "\0";
@@ -322,11 +367,12 @@ static int check_sys_pwr_dm_status(char *pwr_dm)
 	    get_enable_id(ldo_name, i, (char *)enable_id);
 	    printk(KERN_INFO "%s: active child id %d is: %s. ",  ldo_name,  i, enable_id);
 	    //need to check all enabled id is belong to sys_pwr_dm.
-	    if(is_sys_pwr_dm_id(enable_id)){
+	    if((-1) != is_sys_pwr_dm_id(enable_id)){
 		pm_printk(PM_STANDBY_PRINT_PWR_STATUS, KERN_INFO "property: sys \n");
 	    }else{
 		pm_printk(PM_STANDBY_PRINT_PWR_STATUS, KERN_INFO "property: module \n");
 		del_sys_pwr_dm(pwr_dm);
+		save_sys_pwr_state(pwr_dm);
 		break;
 	    }
 	}
@@ -442,6 +488,21 @@ static int aw_pm_valid(suspend_state_t state)
 
 		standby_type = SUPER_STANDBY;
 	}
+#elif defined(CONFIG_ARCH_SUN8IW8P1)
+	if(SUPER_STANDBY == standby_type){
+		printk("Notice: sun8iw8p1 not need support super standby, \
+				change to normal standby.\n");
+		standby_type = NORMAL_STANDBY;
+	}
+	/* default enter to extended standby's normal standby*/
+	{
+		static struct scene_lock  normal_lock;
+		if (unlikely(check_scene_locked(SCENE_NORMAL_STANDBY))) {
+			scene_lock_init(&normal_lock, SCENE_NORMAL_STANDBY,  "normal_standby");
+			scene_lock(&normal_lock);
+		}
+	}
+
 #endif
 
 #ifdef GET_CYCLE_CNT
@@ -477,7 +538,7 @@ static int aw_pm_begin(suspend_state_t state)
 	static int backup_console_loglevel = 0;
 	static __u32 backup_debug_mask = 0;
 
-	PM_DBG("%d state begin\n", state);
+	PM_DBG("version 2014年09月25日 星期四 09时14分04秒_2b7dd9f33b4db4f767f10ac3e26343b3ed04ce04 %d state begin\n", state);
 	//set freq max
 #ifdef CONFIG_CPU_FREQ_USR_EVNT_NOTIFY
 	//cpufreq_user_event_notify();
@@ -490,7 +551,7 @@ static int aw_pm_begin(suspend_state_t state)
 #endif
 
 	//check rtc status, if err happened, do sth to fix it.
-	suspend_status = get_mem_status(); 
+	suspend_status = get_pm_secure_mem_status(); 
 	suspend_status = FIRST_BOOT_FLAG; 
 	if( (FIRST_BOOT_FLAG)!= suspend_status && (RESUME_COMPLETE_FLAG) != suspend_status){
 	    suspend_result = -1;
@@ -522,7 +583,7 @@ static int aw_pm_begin(suspend_state_t state)
 	    }
 	    suspend_result = 0; 
 	}
-	save_mem_status(BEFORE_EARLY_SUSPEND |0x1);
+	save_pm_secure_mem_status(BEFORE_EARLY_SUSPEND |0x1);
 	
 	return 0;
 
@@ -547,7 +608,7 @@ static int aw_pm_begin(suspend_state_t state)
 static int aw_pm_prepare(void)
 {
     PM_DBG("prepare\n");
-	save_mem_status(BEFORE_EARLY_SUSPEND |0x3);
+	save_pm_secure_mem_status(BEFORE_EARLY_SUSPEND |0x3);
 
     return 0;
 }
@@ -581,7 +642,7 @@ static int aw_pm_prepare_late(void)
 	
     cpufreq_driver_target(&policy, suspend_freq, CPUFREQ_RELATION_L);
 #endif
-    save_mem_status(BEFORE_EARLY_SUSPEND |0x5);
+    save_pm_secure_mem_status(BEFORE_EARLY_SUSPEND |0x5);
     return 0;
 
 #ifdef CONFIG_CPU_FREQ	
@@ -612,15 +673,21 @@ static int aw_suspend_cpu_die(void)
     actlr &= ~(1<<6);
     asm("mcr    p15, 0, %0, c1, c0, 1\n" : : "r" (actlr));
 
-    writel(0x0, 0xf1794000);
-
     /* step5: execute an ISB instruction */
     isb();
     /* step6: execute a DSB instruction  */
     dsb();
 
+    /*
+     * step7: if define trustzone, switch to secure os
+     * and then enter to wfi mode
+     */
+#ifdef CONFIG_SUNXI_TRUSTZONE
+    call_firmware_op(suspend);
+#else
     /* step7: execute a WFI instruction */
     asm("wfi" : : : "memory", "cc");
+#endif
     
     return 0;
 }
@@ -639,8 +706,7 @@ static int aw_suspend_cpu_die(void)
 */
 static int aw_early_suspend(void)
 {
-
-	save_mem_status(BEFORE_EARLY_SUSPEND |0x9);
+	save_pm_secure_mem_status(BEFORE_EARLY_SUSPEND |0x9);
 #define MAX_RETRY_TIMES (5)
 	//backup device state
 	mem_ccu_save(&(saved_ccm_state));
@@ -649,13 +715,17 @@ static int aw_early_suspend(void)
 	mem_cci400_save(&(saved_cci400_state));
 #endif
 #if defined(CONFIG_ARCH_SUN9IW1P1) || defined(CONFIG_ARCH_SUN8IW6P1)
+#ifndef CONFIG_SUNXI_TRUSTZONE
 	mem_tmstmp_save(&(saved_tmstmp_state));
+#endif
 #endif
 	mem_clk_save(&(saved_clk_state));
 	mem_gpio_save(&(saved_gpio_state));
 	mem_tmr_save(&(saved_tmr_state));
 	mem_twi_save(&(saved_twi_state));
+#ifndef CONFIG_SUNXI_TRUSTZONE
 	mem_sram_save(&(saved_sram_state));
+#endif
 
 #if 0
 	//backup volt and freq state, after backup device state
@@ -703,6 +773,11 @@ static int aw_early_suspend(void)
 	}
 
 	//clean all the data into dram
+#ifdef CONFIG_SUNXI_TRUSTZONE
+        /* note: switch to secureos and save monitor vector to mem_para_info. */
+	mem_para_info.monitor_vector= call_firmware_op(suspend_prepare);
+#endif
+	printk("hsr: monitor_vector %x\n", mem_para_info.monitor_vector);
 	memcpy((void *)phys_to_virt(DRAM_MEM_PARA_INFO_PA), (void *)&mem_para_info, sizeof(mem_para_info));
 	if ((NULL != extended_standby_manager_id) && (NULL != extended_standby_manager_id->pextended_standby))
 		memcpy((void *)(phys_to_virt(DRAM_EXTENDED_STANDBY_INFO_PA)),
@@ -750,7 +825,7 @@ static int aw_early_suspend(void)
 		super_standby_para_info.event |= CPUS_WAKEUP_TIMEOUT;
 	}
 	
-	save_mem_status(BEFORE_EARLY_SUSPEND |0xb);
+	save_pm_secure_mem_status(BEFORE_EARLY_SUSPEND |0xb);
 	if(unlikely(debug_mask&PM_STANDBY_PRINT_STANDBY)){
 		pr_info("standby info: \n");
 		pr_info("resume1_bin_start = 0x%x, resume1_bin_end = 0x%x. \n", (int)&resume1_bin_start, (int)&resume1_bin_end);
@@ -760,20 +835,17 @@ static int aw_early_suspend(void)
 			super_standby_para_info.resume_code_length);
 
 		pr_info("total(def & dynamic config) standby wakeup src config: 0x%lx.\n", super_standby_para_info.event);
-		parse_wakeup_event(NULL, 0, super_standby_para_info.event);
+		parse_wakeup_event(NULL, 0, super_standby_para_info.event, CPUS_ID);
 	}
 
 #if 1
 	//disable int to make sure the cpu0 into wfi state.
 	mem_int_init();
-	save_mem_status(BEFORE_EARLY_SUSPEND |0xd);
+	save_pm_secure_mem_status(BEFORE_EARLY_SUSPEND |0xd);
 #ifdef CONFIG_SUNXI_ARISC
 	arisc_standby_super((struct super_standby_para *)(&super_standby_para_info), NULL, NULL);
-#else
-	#warning "ARISC driver is not enabled!!!!!!!!!"
 #endif
-	
-	save_mem_status(BEFORE_EARLY_SUSPEND |0xf);
+	save_pm_secure_mem_status(BEFORE_EARLY_SUSPEND |0xf);
 	aw_suspend_cpu_die();
 #endif
 	pr_info("standby suspend failed\n");
@@ -831,14 +903,16 @@ static void aw_late_resume(void)
 	mem_para_info.mem_flag = 0;
 	
 #if defined(CONFIG_ARCH_SUN9IW1P1) || defined(CONFIG_ARCH_SUN8IW6P1)
+#ifndef CONFIG_SUNXI_TRUSTZONE
 	mem_tmstmp_restore(&(saved_tmstmp_state));
 #endif
-	save_mem_status(LATE_RESUME_START |0x0);
+#endif
+	save_pm_secure_mem_status(LATE_RESUME_START |0x0);
 	//restore device state
 	mem_clk_restore(&(saved_clk_state));
-	save_mem_status(LATE_RESUME_START |0x1);
+	save_pm_secure_mem_status(LATE_RESUME_START |0x1);
 	mem_ccu_restore(&(saved_ccm_state));
-	save_mem_status(LATE_RESUME_START |0x2);
+	save_pm_secure_mem_status(LATE_RESUME_START |0x2);
 	
 	if(unlikely(debug_mask&PM_STANDBY_PRINT_RESUME_IO_STATUS)){
 		printk("before io_resume. \n");
@@ -851,19 +925,21 @@ static void aw_late_resume(void)
 	
 	mem_gpio_restore(&(saved_gpio_state));
 	
-	save_mem_status(LATE_RESUME_START |0x3);
+	save_pm_secure_mem_status(LATE_RESUME_START |0x3);
 	mem_twi_restore(&(saved_twi_state));
 	mem_tmr_restore(&(saved_tmr_state));
-	save_mem_status(LATE_RESUME_START |0x4);
+	save_pm_secure_mem_status(LATE_RESUME_START |0x4);
 	//mem_int_restore(&(saved_gic_state));
+#ifndef CONFIG_SUNXI_TRUSTZONE
 	mem_sram_restore(&(saved_sram_state));
-	save_mem_status(LATE_RESUME_START |0x5);
+#endif
+	save_pm_secure_mem_status(LATE_RESUME_START |0x5);
 #ifdef CONFIG_ARCH_SUN9IW1P1	
 	mem_gtbus_restore(&(saved_gtbus_state));
-	save_mem_status(LATE_RESUME_START |0x6);
+	save_pm_secure_mem_status(LATE_RESUME_START |0x6);
 //	mem_cci400_restore(&(saved_cci400_state));
 #endif
-
+	
 	return;
 }
 
@@ -885,24 +961,24 @@ static int aw_super_standby(suspend_state_t state)
 
 mem_enter:
 	if( 1 == mem_para_info.mem_flag){
-		save_mem_status(BEFORE_LATE_RESUME |0x1);
+		save_pm_secure_mem_status(BEFORE_LATE_RESUME |0x1);
 		//print_call_info();
 		invalidate_branch_predictor();
 		//print_call_info();
 		//must be called to invalidate I-cache inner shareable?
 		// I+BTB cache invalidate
 		__cpuc_flush_icache_all();
-		save_mem_status(BEFORE_LATE_RESUME |0x2);
+		save_pm_secure_mem_status(BEFORE_LATE_RESUME |0x2);
 		//print_call_info();
 		//disable 0x0000 <---> 0x0000 mapping
-		save_mem_status(BEFORE_LATE_RESUME |0x3);
+		save_pm_secure_mem_status(BEFORE_LATE_RESUME |0x3);
 		restore_processor_state();
 		//destroy 0x0000 <---> 0x0000 mapping
-		save_mem_status(BEFORE_LATE_RESUME |0x4);
+		save_pm_secure_mem_status(BEFORE_LATE_RESUME |0x4);
 		restore_mapping(MEM_SW_VA_SRAM_BASE);
-		save_mem_status(BEFORE_LATE_RESUME |0x5);
+		save_pm_secure_mem_status(BEFORE_LATE_RESUME |0x5);
 		mem_arch_resume();
-		save_mem_status(BEFORE_LATE_RESUME |0x6);
+		save_pm_secure_mem_status(BEFORE_LATE_RESUME |0x6);
 		goto resume;
 	}
 
@@ -937,215 +1013,348 @@ mem_enter:
 
 resume:
 	aw_late_resume();
-	save_mem_status(LATE_RESUME_START |0x7);
+	save_pm_secure_mem_status(LATE_RESUME_START |0x7);
 	//have been disable dcache in resume1
 	//enable_cache();
 	if(unlikely(debug_mask&PM_STANDBY_PRINT_RESUME)){
 		print_call_info();
 	}
-	save_mem_status(LATE_RESUME_START |0x8);
-
+	save_pm_secure_mem_status(LATE_RESUME_START |0x8);
 
 suspend_err:
 	if(unlikely(debug_mask&PM_STANDBY_PRINT_RESUME)){
 		pr_info("suspend_status_flag = %d. \n", suspend_status_flag);
 	}
-	save_mem_status(LATE_RESUME_START |0x9);
+	save_pm_secure_mem_status(LATE_RESUME_START |0x9);
 
 	return 0;
 
 }
 
+static void init_wakeup_src(unsigned int event)
+{
+	//config int src.
+	mem_int_init();
+	mem_clk_init(1);
+	/* initialise standby modules */
+	if(unlikely(debug_mask&PM_STANDBY_PRINT_STANDBY)){
+		//don't need init serial ,depend kernel?
+		serial_init(0);
+		printk("normal standby wakeup src config = 0x%x. \n", event);
+	}
+	
+	mem_tmr_init();
+	
+	/* init some system wake source */
+	if(event & CPU0_WAKEUP_MSGBOX){
+	    if(unlikely(standby_info.standby_para.debug_mask&PM_STANDBY_PRINT_STANDBY)){
+		printk("enable CPU0_WAKEUP_MSGBOX. \n");
+	    }
+	    mem_enable_int(INT_SOURCE_MSG_BOX);
+	}
+	
+	if(event & CPU0_WAKEUP_EXINT){
+	    printk("enable CPU0_WAKEUP_EXINT. \n");
+	    mem_enable_int(INT_SOURCE_EXTNMI);
+	}
+
+	if(event & CPU0_WAKEUP_TIMEOUT){
+	    printk("enable CPU0_WAKEUP_TIMEOUT. \n");
+	    /* set timer for power off */
+	    if(standby_info.standby_para.timeout) {
+		mem_tmr_set(standby_info.standby_para.timeout);
+		mem_enable_int(INT_SOURCE_TIMER0);
+	    }
+	}
+
+	if(event & CPU0_WAKEUP_ALARM){
+	    mem_enable_int(INT_SOURCE_ALARM);
+	}
+
+	if(event & CPU0_WAKEUP_KEY){
+	    mem_key_init();
+	    mem_enable_int(INT_SOURCE_LRADC);
+	}
+	if(event & CPU0_WAKEUP_IR){
+	    mem_ir_init();
+	    mem_enable_int(INT_SOURCE_IR0);
+	    mem_enable_int(INT_SOURCE_IR1);
+	}
+	
+	if(event & CPU0_WAKEUP_USB){
+	    mem_usb_init();
+	    mem_enable_int(INT_SOURCE_USBOTG);
+	    mem_enable_int(INT_SOURCE_USBEHCI0);
+	    mem_enable_int(INT_SOURCE_USBEHCI1);
+	    mem_enable_int(INT_SOURCE_USBEHCI2);
+	    mem_enable_int(INT_SOURCE_USBOHCI0);
+	    mem_enable_int(INT_SOURCE_USBOHCI1);
+	    mem_enable_int(INT_SOURCE_USBOHCI2);
+	}
+	
+	if(event & CPU0_WAKEUP_PIO){
+	    mem_enable_int(INT_SOURCE_GPIOA);
+	    mem_enable_int(INT_SOURCE_GPIOB);
+	    mem_enable_int(INT_SOURCE_GPIOC);
+	    mem_enable_int(INT_SOURCE_GPIOD);
+	    mem_enable_int(INT_SOURCE_GPIOE);
+	    mem_enable_int(INT_SOURCE_GPIOF);
+	    mem_enable_int(INT_SOURCE_GPIOG);
+	    mem_enable_int(INT_SOURCE_GPIOH);
+	    mem_enable_int(INT_SOURCE_GPIOI);
+	    mem_enable_int(INT_SOURCE_GPIOJ);
+	    mem_pio_clk_src_init();
+	}
+
+	return ;
+}
+
+static void exit_wakeup_src(unsigned int event)
+{
+	/* exit standby module */
+	if(event & CPU0_WAKEUP_PIO){
+	    mem_pio_clk_src_exit();
+	}
+	
+	if(event & CPU0_WAKEUP_USB){
+	    mem_usb_exit();
+	}
+	
+	if(event & CPU0_WAKEUP_IR){
+	    mem_ir_exit();
+	}
+	
+	if(event & CPU0_WAKEUP_ALARM){
+	}
+
+	if(event & CPU0_WAKEUP_KEY){
+	    mem_key_exit();
+	}
+
+	/* exit standby module */
+	mem_tmr_exit();
+
+	if(unlikely(debug_mask&PM_STANDBY_PRINT_STANDBY)){
+		//restore serial clk & gpio config.
+		serial_exit();
+	}
+	
+	save_pm_secure_mem_status(BEFORE_LATE_RESUME);
+	mem_int_exit();
+	
+	return ;
+}
+
+static void aw_pm_show_dev_status(void)
+{
+    int i = 0;
+    if(unlikely(debug_mask&PM_STANDBY_PRINT_IO_STATUS)){
+	printk(KERN_INFO "IO status as follow:");
+	for(i=0; i<(GPIO_REG_LENGTH); i++){
+	    printk(KERN_INFO "ADDR = %x, value = %x .\n", \
+		    (volatile __u32)(IO_ADDRESS(AW_PIO_BASE) + i*0x04), *(volatile __u32 *)(IO_ADDRESS(AW_PIO_BASE) + i*0x04));
+	}
+    }
+
+    if(unlikely(debug_mask&PM_STANDBY_PRINT_CPUS_IO_STATUS)){
+	printk(KERN_INFO "CPUS IO status as follow:");
+	for(i=0; i<(CPUS_GPIO_REG_LENGTH); i++){
+	    printk(KERN_INFO "ADDR = %x, value = %x .\n", \
+		    (volatile __u32)(IO_ADDRESS(AW_R_PIO_BASE) + i*0x04), *(volatile __u32 *)(IO_ADDRESS(AW_R_PIO_BASE) + i*0x04));
+	}
+    }
+
+    if(unlikely(debug_mask&PM_STANDBY_PRINT_CCU_STATUS)){
+	printk(KERN_INFO "CCU status as follow:");
+	for(i=0; i<(CCU_REG_LENGTH); i++){
+	    printk(KERN_INFO "ADDR = %x, value = %x .\n", \
+		    (volatile __u32)(IO_ADDRESS(AW_CCM_BASE) + i*0x04), *(volatile __u32 *)(IO_ADDRESS(AW_CCM_BASE) + i*0x04));
+	}
+    }
+
+    return ;
+}
 
 /*
-*********************************************************************************************************
-*                           aw_pm_enter
-*
-*Description: Enter the system sleep state;
-*
-*Arguments  : state     system sleep state;
-*
-*Return     : return 0 is process successed;
-*
-*Notes      : this function is the core function for platform sleep.
-*********************************************************************************************************
-*/
+ *********************************************************************************************************
+ *                           aw_pm_enter
+ *
+ *Description: Enter the system sleep state;
+ *
+ *Arguments  : state     system sleep state;
+ *
+ *Return     : return 0 is process successed;
+ *
+ *Notes      : this function is the core function for platform sleep.
+ *********************************************************************************************************
+ */
 static int aw_pm_enter(suspend_state_t state)
 {
-	int (*standby)(struct aw_pm_info *arg);
-	int i = 0;
+    int (*standby)(struct aw_pm_info *arg);
+    unsigned int backuped_event = 0;
+#ifdef CONFIG_ARCH_SUN8IW3P1
+    int val = 0;
+    int sram_backup = 0;
+#endif
+    
+    PM_DBG("enter state %d\n", state);
+    
+    save_pm_secure_mem_status(BEFORE_EARLY_SUSPEND |0x7);
+    if(unlikely(0 == console_suspend_enabled)){
+	debug_mask |= (PM_STANDBY_PRINT_RESUME | PM_STANDBY_PRINT_STANDBY);
+    }else{
+	debug_mask &= ~(PM_STANDBY_PRINT_RESUME | PM_STANDBY_PRINT_STANDBY);
+    }
 
 #ifdef CONFIG_ARCH_SUN8IW3P1
-	int val = 0;
-	int sram_backup = 0;
-#endif
-	PM_DBG("enter state %d\n", state);
-	save_mem_status(BEFORE_EARLY_SUSPEND |0x7);
-	if(unlikely(0 == console_suspend_enabled)){
-			debug_mask |= (PM_STANDBY_PRINT_RESUME | PM_STANDBY_PRINT_STANDBY);
-		}else{
-			debug_mask &= ~(PM_STANDBY_PRINT_RESUME | PM_STANDBY_PRINT_STANDBY);
-	}
-#ifdef CONFIG_ARCH_SUN8IW3P1
-//#if 0
-	val = readl((const volatile void __iomem *)SRAM_CTRL_REG1_ADDR_VA);
-	sram_backup = val;
-	val |= 0x1000000;
-	writel(val, (volatile void __iomem *)SRAM_CTRL_REG1_ADDR_VA);
+    //#if 0
+    val = readl((const volatile void __iomem *)SRAM_CTRL_REG1_ADDR_VA);
+    sram_backup = val;
+    val |= 0x1000000;
+    writel(val, (volatile void __iomem *)SRAM_CTRL_REG1_ADDR_VA);
 #endif
 
-	if(unlikely(debug_mask&PM_STANDBY_PRINT_IO_STATUS)){
-		printk(KERN_INFO "IO status as follow:");
-		for(i=0; i<(GPIO_REG_LENGTH); i++){
-			printk(KERN_INFO "ADDR = %x, value = %x .\n", \
-				(volatile __u32)(IO_ADDRESS(AW_PIO_BASE) + i*0x04), *(volatile __u32 *)(IO_ADDRESS(AW_PIO_BASE) + i*0x04));
-		}
+    /* show device: cpux_io, cpus_io, ccu status */
+    aw_pm_show_dev_status();
+
+#if (defined(CONFIG_ARCH_SUN8IW8P1) || defined(CONFIG_ARCH_SUN8IW6P1)) && defined(CONFIG_AW_AXP)
+    if(unlikely(debug_mask&PM_STANDBY_PRINT_PWR_STATUS)){
+	printk(KERN_INFO "power status as follow:");
+	axp_regulator_dump();	
+    }
+
+    /* check pwr usage info: change sys_id according module usage info.*/
+    check_pwr_status();
+    /* config sys_pwr_dm according to the sysconfig */
+    config_sys_pwr();
+#endif
+
+    extended_standby_manager_id = get_extended_standby_manager();
+    extended_standby_show_state();
+
+    if(NORMAL_STANDBY== standby_type){
+
+	standby = (int (*)(struct aw_pm_info *arg))SRAM_FUNC_START;
+	
+	//move standby code to sram
+	memcpy((void *)SRAM_FUNC_START, (void *)&standby_bin_start, (int)&standby_bin_end - (int)&standby_bin_start);
+	
+	/* prepare system wakeup evetn type */
+	if(PM_SUSPEND_MEM == state || PM_SUSPEND_STANDBY == state){
+	    standby_info.standby_para.axp_event = CPUS_MEM_WAKEUP;
+	    standby_info.standby_para.event = CPU0_MEM_WAKEUP;
+	}else if(PM_SUSPEND_BOOTFAST == state){
+	    standby_info.standby_para.axp_event = CPUS_BOOTFAST_WAKEUP;
+	    standby_info.standby_para.event = CPU0_BOOTFAST_WAKEUP;
 	}
 
-	if(unlikely(debug_mask&PM_STANDBY_PRINT_CPUS_IO_STATUS)){
-		printk(KERN_INFO "CPUS IO status as follow:");
-		for(i=0; i<(CPUS_GPIO_REG_LENGTH); i++){
-			printk(KERN_INFO "ADDR = %x, value = %x .\n", \
-				(volatile __u32)(IO_ADDRESS(AW_R_PIO_BASE) + i*0x04), *(volatile __u32 *)(IO_ADDRESS(AW_R_PIO_BASE) + i*0x04));
-		}
-	}
-
-	if(unlikely(debug_mask&PM_STANDBY_PRINT_CCU_STATUS)){
-		printk(KERN_INFO "CCU status as follow:");
-		for(i=0; i<(CCU_REG_LENGTH); i++){
-			printk(KERN_INFO "ADDR = %x, value = %x .\n", \
-				(volatile __u32)(IO_ADDRESS(AW_CCM_BASE) + i*0x04), *(volatile __u32 *)(IO_ADDRESS(AW_CCM_BASE) + i*0x04));
-		}
-	}
-
-#ifdef CONFIG_ARCH_SUN8IW6P1
-	if(unlikely(debug_mask&PM_STANDBY_PRINT_PWR_STATUS)){
-		printk(KERN_INFO "power status as follow:");
-		axp_regulator_dump();	
+	//config extended_standby info.
+	if (NULL != extended_standby_manager_id) {
+	    standby_info.standby_para.axp_event |= extended_standby_manager_id->event;
+	    standby_info.standby_para.gpio_enable_bitmap = extended_standby_manager_id->wakeup_gpio_map;
+	    standby_info.standby_para.cpux_gpiog_bitmap = extended_standby_manager_id->wakeup_gpio_group;
 	}
 	
-	check_pwr_status();
+	if ((NULL != extended_standby_manager_id) && (NULL != extended_standby_manager_id->pextended_standby))
+	    standby_info.standby_para.pextended_standby = (extended_standby_t *)(DRAM_EXTENDED_STANDBY_INFO_PA);
+	else
+	    standby_info.standby_para.pextended_standby = NULL;
+
+	standby_info.standby_para.debug_mask = debug_mask;
+	//ignore less than 1000ms
+	standby_info.standby_para.timeout = (time_to_wakeup/1000);
+	if(0 < standby_info.standby_para.timeout){
+	    standby_info.standby_para.axp_event |= CPUS_WAKEUP_TIMEOUT;
+	    standby_info.standby_para.event |= CPU0_WAKEUP_TIMEOUT;
+	}
+#if (defined(CONFIG_ARCH_SUN8IW8P1) || defined(CONFIG_ARCH_SUN8IW6P1)) && defined(CONFIG_AW_AXP)
+	get_pwr_regu_tree(standby_info.pmu_arg.soc_power_tree);
 #endif
+	//clean all the data into dram
+	memcpy((void *)phys_to_virt(DRAM_MEM_PARA_INFO_PA), (void *)&mem_para_info, sizeof(mem_para_info));
+	if ((NULL != extended_standby_manager_id) && (NULL != extended_standby_manager_id->pextended_standby))
+	    memcpy((void *)(phys_to_virt(DRAM_EXTENDED_STANDBY_INFO_PA)),
+		    (void *)(extended_standby_manager_id->pextended_standby),
+		    sizeof(*(extended_standby_manager_id->pextended_standby)));
+	dmac_flush_range((void *)phys_to_virt(DRAM_MEM_PARA_INFO_PA), (void *)(phys_to_virt(DRAM_EXTENDED_STANDBY_INFO_PA) + DRAM_EXTENDED_STANDBY_INFO_SIZE));
 
-	extended_standby_manager_id = get_extended_standby_manager();
-	extended_standby_show_state();
+	// build the coherent between cache and memory
+	//clean and flush: the data is already in cache, so can clean the data into sram;
+	//while, in dma transfer condition, the data is not in cache, so can not use this api in dma ops.
+	//at current situation, no need to clean & invalidate cache;
+	//__cpuc_flush_kern_all();
 
-	if(NORMAL_STANDBY== standby_type){
-		standby = (int (*)(struct aw_pm_info *arg))SRAM_FUNC_START;
-		//move standby code to sram
-		memcpy((void *)SRAM_FUNC_START, (void *)&standby_bin_start, (int)&standby_bin_end - (int)&standby_bin_start);
-		/* config system wakeup evetn type */
-		if(PM_SUSPEND_MEM == state || PM_SUSPEND_STANDBY == state){
-			standby_info.standby_para.axp_event = CPUS_MEM_WAKEUP;
-			standby_info.standby_para.event = CPU0_MEM_WAKEUP;
-		}else if(PM_SUSPEND_BOOTFAST == state){
-			standby_info.standby_para.axp_event = CPUS_BOOTFAST_WAKEUP;
-			standby_info.standby_para.event = CPU0_BOOTFAST_WAKEUP;
-		}
-		if (NULL != extended_standby_manager_id) {
-			standby_info.standby_para.axp_event |= extended_standby_manager_id->event;
-			standby_info.standby_para.gpio_enable_bitmap = extended_standby_manager_id->wakeup_gpio_map;
-		}
+	/* init some system wake source: including necessary init ops. */
+	init_wakeup_src(standby_info.standby_para.event);
 
-		standby_info.standby_para.debug_mask = debug_mask;
-		standby_info.standby_para.timeout = time_to_wakeup;
-		if(0 < standby_info.standby_para.timeout){
-			standby_info.standby_para.axp_event |= CPUS_WAKEUP_TIMEOUT;
-		}
+	save_pm_secure_mem_status(RESUME0_START);
+	backuped_event = standby_info.standby_para.event;
 
-		// build the coherent between cache and memory
-		//clean and flush: the data is already in cache, so can clean the data into sram;
-		//while, in dma transfer condition, the data is not in cache, so can not use this api in dma ops.
-		//at current situation, no need to clean & invalidate cache;
-		//__cpuc_flush_kern_all();
+	/* goto sram and run */
+	standby(&standby_info);
 
-		//config int src.
-		mem_int_init();
+	exit_wakeup_src(backuped_event);
+	save_pm_secure_mem_status(BEFORE_LATE_RESUME | 0x1);
 
-		save_mem_status(RESUME0_START);
-		/* goto sram and run */
-		standby(&standby_info);
-
-		save_mem_status(BEFORE_LATE_RESUME);
-		mem_int_exit();
-		save_mem_status(BEFORE_LATE_RESUME | 0x1);
-
-		PM_DBG("platform wakeup, normal standby cpu0 wakesource is:0x%x\n, normal standby cpus wakesource is:0x%x. \n", \
-			standby_info.standby_para.event, standby_info.standby_para.axp_event);
+	PM_DBG("platform wakeup, normal standby cpu0 wakesource is:0x%x\n, normal standby cpus wakesource is:0x%x. \n", \
+		standby_info.standby_para.event, standby_info.standby_para.axp_event);
 		
-		parse_wakeup_event(NULL, 0, standby_info.standby_para.event);
-		parse_wakeup_event(NULL, 0, standby_info.standby_para.axp_event);
+	parse_wakeup_event(NULL, 0, standby_info.standby_para.event, CPU0_ID);
+	parse_wakeup_event(NULL, 0, standby_info.standby_para.axp_event, CPUS_ID);
 
-		save_mem_status(BEFORE_LATE_RESUME | 0x2);
+		save_pm_secure_mem_status(BEFORE_LATE_RESUME | 0x2);
 
-	}else if(SUPER_STANDBY == standby_type){
-		aw_super_standby(state);
+    }else if(SUPER_STANDBY == standby_type){
+	aw_super_standby(state);
 
 #ifdef CONFIG_SUNXI_ARISC
-		arisc_cpux_ready_notify();
-		arisc_query_wakeup_source((unsigned long *)(&(mem_para_info.axp_event)));
-#else
-		#warning "ARISC driver is not enabled!!!!!!!!!"
+	arisc_cpux_ready_notify();
+	arisc_query_wakeup_source((unsigned long *)(&(mem_para_info.axp_event)));
 #endif
-		if (mem_para_info.axp_event & (CPUS_WAKEUP_LONG_KEY)) {
+	if (mem_para_info.axp_event & (CPUS_WAKEUP_LONG_KEY)) {
 #ifdef	CONFIG_AW_AXP
-			axp_powerkey_set(0);
+	    axp_powerkey_set(0);
 #endif
-		}
-		PM_DBG("platform wakeup, super standby wakesource is:0x%x\n", mem_para_info.axp_event);	
-		parse_wakeup_event(NULL, 0, mem_para_info.axp_event);
-		if(unlikely(debug_mask&PM_STANDBY_PRINT_IO_STATUS)){
-		    printk(KERN_INFO "IO status as follow:");
-		    for(i=0; i<(GPIO_REG_LENGTH); i++){
-			printk(KERN_INFO "ADDR = %x, value = %x .\n", \
-				(volatile __u32)(IO_ADDRESS(AW_PIO_BASE) + i*0x04), *(volatile __u32 *)(IO_ADDRESS(AW_PIO_BASE) + i*0x04));
-		    }
-		}
-
-		if(unlikely(debug_mask&PM_STANDBY_PRINT_CPUS_IO_STATUS)){
-		    printk(KERN_INFO "CPUS IO status as follow:");
-		    for(i=0; i<(CPUS_GPIO_REG_LENGTH); i++){
-			printk(KERN_INFO "ADDR = %x, value = %x .\n", \
-				(volatile __u32)(IO_ADDRESS(AW_R_PIO_BASE) + i*0x04), *(volatile __u32 *)(IO_ADDRESS(AW_R_PIO_BASE) + i*0x04));
-		    }
-		}
-
-		if(unlikely(debug_mask&PM_STANDBY_PRINT_CCU_STATUS)){
-		    printk(KERN_INFO "CCU status as follow:");
-		    for(i=0; i<(CCU_REG_LENGTH); i++){
-			printk(KERN_INFO "ADDR = %x, value = %x .\n", \
-				(volatile __u32)(IO_ADDRESS(AW_CCM_BASE) + i*0x04), *(volatile __u32 *)(IO_ADDRESS(AW_CCM_BASE) + i*0x04));
-		    }
-		}
 	}
+	PM_DBG("platform wakeup, super standby wakesource is:0x%x\n", mem_para_info.axp_event);	
+	parse_wakeup_event(NULL, 0, mem_para_info.axp_event, CPUS_ID);
+
+	/* show device: cpux_io, cpus_io, ccu status */
+        aw_pm_show_dev_status();
+
+    }
 	
-#ifdef CONFIG_ARCH_SUN8IW3P1	
-//#if 0
-	writel(sram_backup,(volatile void __iomem *)SRAM_CTRL_REG1_ADDR_VA);
+#if (defined(CONFIG_ARCH_SUN8IW8P1) || defined(CONFIG_ARCH_SUN8IW6P1)) && defined(CONFIG_AW_AXP)
+    resume_sys_pwr_state();
 #endif
-	return 0;
+
+#ifdef CONFIG_ARCH_SUN8IW3P1	
+    //#if 0
+    writel(sram_backup,(volatile void __iomem *)SRAM_CTRL_REG1_ADDR_VA);
+#endif
+    return 0;
 }
 
 
 /*
-*********************************************************************************************************
-*                           aw_pm_wake
-*
-*Description: platform wakeup;
-*
-*Arguments  : none;
-*
-*Return     : none;
-*
-*Notes      : This function called when the system has just left a sleep state, right after
-*             the nonboot CPUs have been enabled and before device drivers' early resume
-*             callbacks are executed. This function is opposited to the aw_pm_prepare_late;
-*********************************************************************************************************
-*/
+ *********************************************************************************************************
+ *                           aw_pm_wake
+ *
+ *Description: platform wakeup;
+ *
+ *Arguments  : none;
+ *
+ *Return     : none;
+ *
+ *Notes      : This function called when the system has just left a sleep state, right after
+ *             the nonboot CPUs have been enabled and before device drivers' early resume
+ *             callbacks are executed. This function is opposited to the aw_pm_prepare_late;
+ *********************************************************************************************************
+ */
 static void aw_pm_wake(void)
 {
-	save_mem_status(AFTER_LATE_RESUME |0x1);
-	return;
+	save_pm_secure_mem_status(AFTER_LATE_RESUME |0x1);
+    return;
 }
 
 /*
@@ -1167,7 +1376,7 @@ static void aw_pm_finish(void)
 #ifdef CONFIG_CPU_FREQ	
     struct cpufreq_policy policy;
 #endif
-    save_mem_status(AFTER_LATE_RESUME |0x2);
+    save_pm_secure_mem_status(AFTER_LATE_RESUME |0x2);
     PM_DBG("platform wakeup finish\n");
 
 #ifdef CONFIG_CPU_FREQ	
@@ -1209,7 +1418,7 @@ static void aw_pm_end(void)
 	#endif
 #endif
 
-	save_mem_status(RESUME_COMPLETE_FLAG);
+	save_pm_secure_mem_status(RESUME_COMPLETE_FLAG);
 	PM_DBG("aw_pm_end!\n");
 }
 
@@ -1231,7 +1440,7 @@ static void aw_pm_end(void)
 */
 static void aw_pm_recover(void)
 {
-	save_mem_status(AFTER_LATE_RESUME |0x3);
+	save_pm_secure_mem_status(AFTER_LATE_RESUME |0x3);
     PM_DBG("aw_pm_recover\n");
 }
 
@@ -1262,7 +1471,83 @@ static struct attribute_group attr_group = {
 	.attrs = g,
 };
 
-#ifdef CONFIG_ARCH_SUN8IW6P1
+#if (defined(CONFIG_ARCH_SUN8IW8P1) || defined(CONFIG_ARCH_SUN8IW6P1)) && defined(CONFIG_AW_AXP)
+static int config_pmux_para(unsigned num)
+{
+    script_item_u item;
+#define PM_NAME_LEN (25)
+    char name[PM_NAME_LEN] = "\0";
+    int pmux_enable = 0;
+    int pmux_id = 0;
+    
+    sprintf(name, "pmu%d_para", num);
+    printk("pmu name: %s .\n", name);
+
+    //get customer customized dynamic_standby config
+    if(SCIRPT_ITEM_VALUE_TYPE_INT != script_get_item(name, "pmu_used", &item)){
+	pr_err("%s: script_parser_fetch err. \n", __func__);
+	pmux_enable = 0;
+    }else{
+	pmux_enable = item.val;
+    }
+    printk(KERN_INFO "pmu%d_enable = 0x%x. \n", num, pmux_enable);
+    
+    if(1 == pmux_enable){
+	if(SCIRPT_ITEM_VALUE_TYPE_INT != script_get_item(name, "pmu_id", &item)){
+	    pr_err("%s: script_parser_fetch err. \n", __func__);
+	    pmux_id = 0;
+	}else{
+	    pmux_id = item.val;
+	}
+	printk(KERN_INFO "pmux_id = 0x%x. \n", pmux_id);
+	extended_standby_set_pmu_id(num, pmux_id);
+
+	if(SCIRPT_ITEM_VALUE_TYPE_INT != script_get_item(name, "pmu_twi_id", &item)){
+	    pr_err("%s: script_parser_fetch err. \n", __func__);
+	    standby_info.pmu_arg.twi_port = 0;
+	}else{
+	    standby_info.pmu_arg.twi_port = item.val;
+	}
+
+	if(SCIRPT_ITEM_VALUE_TYPE_INT != script_get_item(name, "pmu_twi_addr", &item)){
+	    pr_err("%s: script_parser_fetch err. \n", __func__);
+	    standby_info.pmu_arg.dev_addr = 0x34;
+	}else{
+	    standby_info.pmu_arg.dev_addr = item.val;
+	}
+    }
+    
+    return 0;
+}
+
+static int config_pmu_para(void)
+{
+    config_pmux_para(1);
+    config_pmux_para(2);
+    return 0;
+}
+
+static int init_dynamic_standby_volt(void)
+{
+	script_item_u item;
+	int ret = 0;
+	if(SCIRPT_ITEM_VALUE_TYPE_INT != script_get_item("dynamic_standby_para", "vdd_cpua_vol", &item)){
+		pr_err("%s: vdd_cpua_vol script_parser_fetch err. \n", __func__);
+	}else{
+		ret = scene_set_volt(SCENE_DYNAMIC_STANDBY, VDD_CPUA_BIT, item.val);
+		if (ret < 0)
+			printk(KERN_ERR "%s: set vdd_cpua volt failed\n", __func__);
+	}
+	if(SCIRPT_ITEM_VALUE_TYPE_INT != script_get_item("dynamic_standby_para", "vdd_sys_vol", &item)){
+		pr_err("%s: vdd_sys_vol script_parser_fetch err. \n", __func__);
+	}else{
+		ret = scene_set_volt(SCENE_DYNAMIC_STANDBY, VDD_SYS_BIT, item.val);
+		if (ret < 0)
+			printk(KERN_ERR "%s: set vdd_sys volt failed\n", __func__);
+	}
+	return 0;
+}
+
 static int config_dynamic_standby(void)
 {
     script_item_u item;
@@ -1307,6 +1592,9 @@ static int config_dynamic_standby(void)
 
 	    //config other extended_standby?
 	}
+
+	init_dynamic_standby_volt();
+
 	printk(KERN_INFO "enable dynamic_standby by customer.\n");
 	scene_lock_store(NULL, NULL, "dynamic_standby", 0);
     }
@@ -1323,6 +1611,7 @@ static int config_sys_pwr_dm(char *pwr_dm)
 	printk("%s: value: %d. \n", pwr_dm, item.val);
 	if(0 == item.val) {
 	    del_sys_pwr_dm(pwr_dm);	
+	    save_sys_pwr_state(pwr_dm);
 	}else{
 	    add_sys_pwr_dm(pwr_dm);	
 	}
@@ -1412,19 +1701,19 @@ static int __init aw_pm_init(void)
 
 
 	/*init debug state*/
-	mem_status_init(); 
+	pm_secure_mem_status_init(); 
 	
 	/*for auto test reason.*/
 	//*(volatile __u32 *)(STANDBY_STATUS_REG  + 0x08) = BOOT_UPGRAGE_FLAG;
 	suspend_set_ops(&aw_pm_ops);
 
-#ifdef CONFIG_ARCH_SUN8IW6P1
-	config_dynamic_standby();
+#if (defined(CONFIG_ARCH_SUN8IW8P1) || defined(CONFIG_ARCH_SUN8IW6P1)) && defined(CONFIG_AW_AXP)
+	config_pmu_para();
 	/*init sys_pwr_dm*/
 	init_sys_pwr_dm();
-	//config sys_pwr_dm
-	config_sys_pwr();
+	config_dynamic_standby();
 #endif
+
 
 	aw_pm_kobj = kobject_create_and_add("aw_pm", power_kobj);
 	if (!aw_pm_kobj)

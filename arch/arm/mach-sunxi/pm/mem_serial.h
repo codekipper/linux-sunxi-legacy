@@ -19,8 +19,12 @@
 #define __MEM_SERIAL_H__
 #include "pm.h"
 
-
+#ifdef CONFIG_ARCH_SUN8IW8P1
+#define SUART_BASE_PA	(SUNXI_UART2_PBASE)
+#else
 #define SUART_BASE_PA	(SUNXI_UART0_PBASE)
+#endif
+
 #define SUART_BASE_VA	IO_ADDRESS(SUART_BASE_PA)
 
 #define SUART_RBR_PA	(SUART_BASE_PA + 0x00)
@@ -43,14 +47,15 @@
 
 #define SUART_BAUDRATE	(115200)
 
-void serial_init(void);
+void serial_init(__u32 port_id);
 void serial_exit(void);
+void serial_init_manager(void);
+void serial_exit_manager(void);
 __s32 serial_puts(const char *string);
 __u32 serial_gets(char* buf, __u32 n);
 void serial_init_nommu(__u32 port_id);
 __s32 serial_puts_nommu(const char *string);
 __u32 serial_gets_nommu(char* buf, __u32 n);
-
 
 #endif  /* __MEM_SERIAL_H__ */
 

@@ -7,6 +7,7 @@
 #include <linux/clk-private.h>
 #include <linux/pm_runtime.h>
 #include <linux/dma-mapping.h>
+#include <linux/stat.h>
 #include <linux/delay.h>
 #include <mach/irqs.h>
 #include <mach/sys_config.h>
@@ -21,6 +22,8 @@ static int cur_mode = 0;
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 #endif /* CONFIG_HAS_EARLYSUSPEND */
+
+#include "mali_kernel_linux.h"
 
 static struct clk *mali_clk = NULL;
 static struct clk *gpu_pll  = NULL;
@@ -38,13 +41,27 @@ static void mali_driver_early_suspend_scheduler(struct early_suspend *h);
 static void mali_driver_late_resume_scheduler(struct early_suspend *h);
 #endif /* CONFIG_HAS_EARLYSUSPEND */
 
+extern int ths_read_data(int value);
+
 static unsigned int freq_table[4] =
 {
 	128,  /* for early suspend */
 	252,  /* for play video mode */
+#if !defined(CONFIG_ARCH_SUN8IW7P1)
 	384,  /* for normal mode */
 	384,  /* for extreme mode */
+#elif defined(CONFIG_ARCH_SUN8IW7P1)
+	576,  /* for normal mode */
+	576,  /* for extreme mode */
+#endif
 };
+
+#if defined(CONFIG_ARCH_SUN8IW7P1)
+static unsigned int thermal_ctrl_freq[] = {576, 432, 312, 120};
+
+/* This data is for sensor, but the data of gpu may be 5 degress Centigrade higher */
+static unsigned int temperature_threshold[] = {70, 80, 90};  /* degress Centigrade */
+#endif /* defined(CONFIG_ARCH_SUN8IW7P1) */
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static struct early_suspend mali_early_suspend_handler = 
@@ -79,6 +96,7 @@ static struct platform_device mali_gpu_device =
 };
 
 /*
+
 ***************************************************************
  @Function   :get_gpu_clk
 
@@ -224,13 +242,14 @@ void disable_gpu_clk(void)
 static int mali_throttle_notifier_call(struct notifier_block *nfb, unsigned long mode, void *cmd)
 {
     int retval = NOTIFY_DONE;
-	
+
+#if !defined(CONFIG_ARCH_SUN8IW7P1)
 	if(mode == BUDGET_GPU_THROTTLE && cur_mode == 1)
-    {
+	{
 		mali_set_freq(freq_table[2]);
         cur_mode = 0;
     }
-    else
+	else
 	{
         if(cmd && (*(int *)cmd) == 1 && cur_mode != 1)
 		{
@@ -247,8 +266,29 @@ static int mali_throttle_notifier_call(struct notifier_block *nfb, unsigned long
 			mali_set_freq(freq_table[1]);
 			cur_mode = 2;
 		}
-    }	
+    }
+#elif defined(CONFIG_ARCH_SUN8IW7P1)
+	int temperature = 0;
+	int i = 0;
+	temperature = ths_read_data(4);
+	for(i=0;i<sizeof(temperature_threshold)/sizeof(temperature_threshold[0]);i++)
+	{
+		if(temperature < temperature_threshold[i])
+		{
+			if(cur_mode != i)
+			{
+				mali_set_freq(thermal_ctrl_freq[i]);
+				cur_mode = i;
+			}
+			goto out;
+		}
+	}
 	
+	mali_set_freq(thermal_ctrl_freq[i]);
+	cur_mode = i;
+
+out:		
+#endif
 	return retval;
 }
 
@@ -288,6 +328,42 @@ static struct notifier_block mali_powernow_notifier = {
 };
 #endif
 
+static ssize_t android_dvfs_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+    return sprintf(buf, "%ld MHz\n", clk_get_rate(gpu_pll)/(1000*1000));
+}
+
+static ssize_t android_dvfs_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+    int err;
+	unsigned long freq;	
+	
+	err = strict_strtoul(buf, 10, &freq);
+	if (err)
+	{
+		printk(KERN_ERR "Invalid parameter!");
+		goto err_out;
+	}
+
+	mali_set_freq(freq);
+
+err_out:	
+	return count;
+}
+
+static DEVICE_ATTR(android, S_IRUGO|S_IWUGO, android_dvfs_show, android_dvfs_store);
+
+static struct attribute *gpu_attributes[] =
+{
+    &dev_attr_android.attr,   
+    NULL
+};
+
+struct attribute_group gpu_attribute_group = {
+  .name = "dvfs",
+  .attrs = gpu_attributes
+};
+
 /*
 ***************************************************************
  @Function   :parse_fex
@@ -303,7 +379,11 @@ static void parse_fex(void)
 {
 	script_item_u mali_used, mali_max_freq, mali_clk_freq;
 	
-	if(SCIRPT_ITEM_VALUE_TYPE_INT == script_get_item("clock", "pll8", &mali_clk_freq)) 
+#if defined(CONFIG_ARCH_SUN8IW7P1)
+	if(SCIRPT_ITEM_VALUE_TYPE_INT == script_get_item("clock", "pll_gpu", &mali_clk_freq))
+#else
+	if(SCIRPT_ITEM_VALUE_TYPE_INT == script_get_item("clock", "pll8", &mali_clk_freq))
+#endif
 	{
 		if(mali_clk_freq.val > 0)
 		{
@@ -384,7 +464,7 @@ static int mali_platform_init(void)
 #ifdef CONFIG_HAS_EARLYSUSPEND
 		register_early_suspend(&mali_early_suspend_handler);
 #endif /* CONFIG_HAS_EARLYSUSPEND */
-
+	
 	printk(KERN_INFO "Init Mali gpu successfully\n");
     return 0;
 
@@ -450,6 +530,7 @@ int sun8i_mali_platform_device_register(void)
         if(0 == err)
 		{
             err = platform_device_register(&mali_gpu_device);
+			
             if (0 == err)
 			{
                 if(0 != mali_platform_init())
@@ -463,7 +544,7 @@ int sun8i_mali_platform_device_register(void)
 #endif
 				pm_runtime_enable(&(mali_gpu_device.dev));
 #endif /* CONFIG_PM_RUNTIME */
-
+				
                 return 0;
             }
         }

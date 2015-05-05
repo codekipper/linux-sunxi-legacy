@@ -19,9 +19,10 @@
 #define __STANDBY_I_H__
 
 #include "../pm_types.h" 
-#include "../pm.h"
+#include "../pm_i.h"
 
 #include <linux/power/aw_pm.h>
+#include <linux/power/axp_depend.h>
 #include <mach/platform.h>
 
 #include "standby_cfg.h"
@@ -34,6 +35,9 @@
 #include "standby_ir.h"
 #include "standby_arisc.h"
 
+#ifndef CONFIG_SUNXI_ARISC 
+#include "dram/dram.h"
+#endif
 
 #define readb(addr)		(*((volatile unsigned char  *)(addr)))
 #define readw(addr)		(*((volatile unsigned short *)(addr)))

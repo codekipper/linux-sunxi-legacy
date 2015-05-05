@@ -91,9 +91,11 @@ void sunxi_smp_init_cpus(void)
 		/* parse hardware parameter */
 		switch(chip_ver) {
 			case SUN8IW7P1_REV_A:
+			case SUN8IW7P1_REV_B:
 				nr_cpu_ids = 4;
 				break;
 			case SUN8IW7P2_REV_A:
+			case SUN8IW7P2_REV_B:
 			default:
 				nr_cpu_ids = 2;
 				break;

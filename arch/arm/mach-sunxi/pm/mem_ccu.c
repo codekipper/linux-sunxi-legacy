@@ -2,6 +2,30 @@
 #include "pm_i.h"
 
 
+#if defined(CONFIG_ARCH_SUN8IW8P1)
+/*
+*********************************************************************************************************
+*                                       MEM CCU INITIALISE
+*
+* Description: mem interrupt initialise.
+*
+* Arguments  : none.
+*
+* Returns    : 0/-1;
+*********************************************************************************************************
+*/
+__s32 mem_ccu_save(struct ccm_state *ccm_reg)
+{
+    return -1;
+}
+
+__s32 mem_ccu_restore(struct ccm_state *ccm_reg)
+{
+    return -1;
+}
+
+#endif
+
 #if defined(CONFIG_ARCH_SUN8IW1P1)
 static int i = 0;
 /*
@@ -786,7 +810,7 @@ __s32 mem_ccu_restore(struct ccm_state *ccm_reg)
 	ccm_reg->ccm_reg->Apb1Reset	= ccm_reg->ccm_reg_backup.Apb1Reset;
 	ccm_reg->ccm_reg->Apb2Reset	= ccm_reg->ccm_reg_backup.Apb2Reset;
 
-	save_mem_status(CLK_RESUME_START | 0x7);
+	save_pm_secure_mem_status(CLK_RESUME_START | 0x7);
 	ccm_reg->ccm_reg->Cci400Clk	= (~0x3000000)&ccm_reg->ccm_reg_backup.Cci400Clk;
 	delay_us(10);
 	ccm_reg->ccm_reg->Nand0		= ccm_reg->ccm_reg_backup.Nand0;
@@ -841,7 +865,7 @@ __s32 mem_ccu_restore(struct ccm_state *ccm_reg)
 	ccm_reg->ccm_reg->Apb1Gate     	= ccm_reg->ccm_reg_backup.Apb1Gate;
 	ccm_reg->ccm_reg->Apb2Gate     	= ccm_reg->ccm_reg_backup.Apb2Gate;
 	//config src.
-	save_mem_status(CLK_RESUME_START | 0x8);
+	save_pm_secure_mem_status(CLK_RESUME_START | 0x8);
 	ccm_reg->ccm_reg->Cci400Clk	= ccm_reg->ccm_reg_backup.Cci400Clk; 
 	delay_us(10);
 

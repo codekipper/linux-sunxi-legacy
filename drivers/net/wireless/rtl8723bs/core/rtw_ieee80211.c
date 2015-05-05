@@ -1353,7 +1353,7 @@ void rtw_macaddr_cfg(u8 *mac_addr)
 	u8 mac[ETH_ALEN];
 	if(mac_addr == NULL)	return;
 	
-	if ( rtw_initmac )
+	if ( rtw_initmac && is_valid_ether_addr(rtw_initmac) )
 	{	//	Users specify the mac address
 		int jj,kk;
 

@@ -19,6 +19,8 @@
 #define KEY_BASSADDRESS         (0xf6001800)
 #elif defined(CONFIG_ARCH_SUN8IW6P1)
 #define KEY_BASSADDRESS         (0xf1f03c00)
+#elif defined(CONFIG_ARCH_SUN8IW7P1)
+#define KEY_BASSADDRESS         (0xf1c21800)
 #else
 #define KEY_BASSADDRESS         (0xf1c22800)
 #endif
@@ -113,8 +115,8 @@ static unsigned int sunxi_scankeycodes[KEY_MAX_CNT] = {
 	[0 ] = KEY_VOLUMEUP,
 	[1 ] = KEY_VOLUMEDOWN,
 	[2 ] = KEY_HOME,
-	[3 ] = KEY_RESERVED,
-	[4 ] = KEY_RESERVED,
+	[3 ] = KEY_MENU,
+	[4 ] = KEY_ENTER,
 	[5 ] = KEY_RESERVED,
 	[6 ] = KEY_RESERVED,
 	[7 ] = KEY_RESERVED,

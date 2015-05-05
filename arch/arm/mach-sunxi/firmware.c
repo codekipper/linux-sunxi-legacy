@@ -18,6 +18,7 @@
 #include <linux/secure/te_protocol.h>
 #include <mach/hardware.h>
 #include <mach/sunxi-smc.h>
+#include "./pm/mem_hwspinlock.h"
 
 uint32_t sunxi_do_smc(uint32_t arg0, uint32_t arg1, uint32_t arg2, uint32_t arg3)
 {
@@ -35,16 +36,22 @@ uint32_t sunxi_do_smc(uint32_t arg0, uint32_t arg1, uint32_t arg2, uint32_t arg3
 static u32 sunxi_sec_read_reg(void __iomem *reg)
 {
 	u32 value;
-	u32 _reg = (u32)reg - 0xF0000000;
-	value = sunxi_do_smc(TEE_SMC_PLAFORM_OPERATION, TE_SMC_READ_REG,_reg, 0);
+	u32 phys_addr;
+
+	phys_addr = (u32)reg > (u32)IO_ADDRESS(0) ? ((u32)reg - (u32)IO_ADDRESS(0)) : (u32)reg;
+
+	value = sunxi_do_smc(TEE_SMC_PLAFORM_OPERATION, TE_SMC_READ_REG,phys_addr, 0);
 	return value;
 }
 
 static u32 sunxi_sec_write_reg(u32 value, void __iomem *reg)
 {
 	u32 ret;
-	u32 _reg = (u32)reg - 0xF0000000;
-	ret = sunxi_do_smc(TEE_SMC_PLAFORM_OPERATION, TE_SMC_WRITE_REG, _reg, value);
+	u32 phys_addr;
+
+	phys_addr = (u32)reg > (u32)IO_ADDRESS(0) ? ((u32)reg - (u32)IO_ADDRESS(0)) : (u32)reg;
+
+	ret = sunxi_do_smc(TEE_SMC_PLAFORM_OPERATION, TE_SMC_WRITE_REG, phys_addr, value);
 	return ret;
 }
 
@@ -109,12 +116,74 @@ static u32 sunxi_sec_set_secondary_entry(void *entry)
 	return ret;
 }
 
+static u32 sunxi_sec_suspend(void)
+{
+	u32 ret;
+	ret = sunxi_do_smc(TEE_SMC_PM_SUSPEND, 0, 0, 0);
+	return ret;
+}
+
+/*
+ * note: the function main to get monitor vector to save for resume
+ */
+static u32 sunxi_sec_suspend_prepare(void)
+{
+	u32 ret;
+	ret = sunxi_do_smc(TEE_SMC_PLAFORM_OPERATION, TE_SMC_SUSPEND_PAREPER, 0, 0);
+	return ret;
+}
+
+/* brief
+ * arg0: command type as TEE_SMC_PLAFORM_OPERATION
+ * arg1: set standby status mode.(clear or get or set)
+ * arg2: standby reg physical address.
+ * arg3: value to set when set.
+ */
+static u32 sunxi_sec_set_standby_status(u32 command_type, u32 setting_type, u32 addr, u32 val)
+{
+	u32 ret_val = 0;
+	u32 phys_addr;
+
+	phys_addr = (u32)addr > (u32)IO_ADDRESS(0) ? ((u32)addr - (u32)IO_ADDRESS(0)) : (u32)addr;
+	switch(setting_type){
+		case TE_SMC_STANDBY_STATUS_CLEAR:
+			ret_val = sunxi_do_smc(TEE_SMC_PLAFORM_OPERATION, TE_SMC_READ_REG, phys_addr, 0);
+			if (!hwspin_lock_timeout(MEM_RTC_REG_HWSPINLOCK, 20000)) {
+				ret_val = sunxi_do_smc(TEE_SMC_PLAFORM_OPERATION, TE_SMC_STANDBY_STATUS_CLEAR, phys_addr, ret_val);
+				hwspin_unlock(MEM_RTC_REG_HWSPINLOCK);
+			}
+			break;
+		case TE_SMC_STANDBY_STATUS_SET:
+			if (!hwspin_lock_timeout(MEM_RTC_REG_HWSPINLOCK, 20000)) {
+				ret_val = sunxi_do_smc(TEE_SMC_PLAFORM_OPERATION, TE_SMC_STANDBY_STATUS_SET, phys_addr, val);
+				hwspin_unlock(MEM_RTC_REG_HWSPINLOCK);
+			}
+			asm volatile ("dsb");
+			asm volatile ("isb");
+
+			break;
+		case TE_SMC_STANDBY_STATUS_GET:
+			if (!hwspin_lock_timeout(MEM_RTC_REG_HWSPINLOCK, 20000)) {
+				ret_val = sunxi_do_smc(TEE_SMC_PLAFORM_OPERATION, TE_SMC_STANDBY_STATUS_GET, phys_addr, val);
+				hwspin_unlock(MEM_RTC_REG_HWSPINLOCK);
+			}
+			break;
+		default:
+			break;
+	}
+
+	return ret_val;
+}
+
 static const struct firmware_ops sunxi_firmware_ops = {
 	.read_reg	     = sunxi_sec_read_reg,
 	.write_reg	     = sunxi_sec_write_reg,
 	.send_command	     = sunxi_sec_send_command,
 	.load_arisc          = sunxi_load_arisc,
 	.set_secondary_entry = sunxi_sec_set_secondary_entry,
+	.suspend_prepare     = sunxi_sec_suspend_prepare,
+	.suspend             = sunxi_sec_suspend,
+	.set_standby_status  = sunxi_sec_set_standby_status,
 };
 
 void __init sunxi_firmware_init(void)

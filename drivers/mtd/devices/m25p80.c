@@ -35,18 +35,8 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
 
-#if 0
-#undef pr_debug
-#define pr_debug printk
-
-#define M25_DBG(fmt, arg...)	\
-	do { \
-		printk("%s()%d - ", __func__, __LINE__); \
-		printk(fmt, ##arg); \
-	} while (0)
-#else
-#define M25_DBG(fmt, arg...)
-#endif
+#define M25_DBG(fmt, arg...) pr_debug("%s()%d - "fmt, __func__, __LINE__, ##arg)
+#define M25_ERR(fmt, arg...) pr_err("%s()%d - "fmt, __func__, __LINE__, ##arg)
 
 /* Flash opcodes. */
 #define	OPCODE_WREN		0x06	/* Write enable */
@@ -107,6 +97,43 @@ struct m25p {
 	u8			erase_opcode;
 	u8			*command;
 };
+
+#define		MBR_OFFSET				((256-16)*1024)
+#define     MBR_SIZE			    (16 * 1024)
+#define     DL_SIZE					(16 * 1024)
+#define   	MBR_MAGIC			    "softw411"
+#define     MBR_MAX_PART_COUNT		120
+#define     MBR_RESERVED          	(MBR_SIZE - 32 - (MBR_MAX_PART_COUNT * sizeof(PARTITION)))   //mbr����Ŀռ�
+#define 	NOR_BLK_SIZE			512
+
+/* partition information */
+typedef struct sunxi_partition_t
+{
+	unsigned  int       addrhi;				//��ʼ��ַ, ������Ϊ��λ
+	unsigned  int       addrlo;				//
+	unsigned  int       lenhi;				//����
+	unsigned  int       lenlo;				//
+	unsigned  char      classname[16];		//���豸��
+	unsigned  char      name[16];			//���豸��
+	unsigned  int       user_type;          //�û�����
+	unsigned  int       keydata;            //�ؼ����ݣ�Ҫ����������ʧ
+	unsigned  int       ro;                 //��д����
+	unsigned  char      reserved[68];		//�������ݣ�ƥ�������Ϣ128�ֽ�
+}__attribute__ ((packed))PARTITION;
+
+/* mbr information */
+typedef struct
+{
+	unsigned  int       crc32;				        // crc 1k - 4
+	unsigned  int       version;			        // �汾��Ϣ�� 0x00000100
+	unsigned  char 	    magic[8];			        //softw311"
+	unsigned  int 	    copy;				        //����
+	unsigned  int 	    index;				        //�ڼ���MBR����
+	unsigned  int       PartCount;			        //��������
+	unsigned  int       stamp[1];					//����
+	PARTITION           array[MBR_MAX_PART_COUNT];	//
+	unsigned  char      res[MBR_RESERVED];
+}__attribute__ ((packed)) MBR;
 
 static inline struct m25p *mtd_to_m25p(struct mtd_info *mtd)
 {
@@ -656,6 +683,11 @@ static const struct spi_device_id m25p_ids[] = {
 	{ "en25q32b", INFO(0x1c3016, 0, 64 * 1024,  64, 0) },
 	{ "en25p64", INFO(0x1c2017, 0, 64 * 1024, 128, 0) },
 
+	/* GigaDevice */
+	{ "gd25q16", INFO(0xc84015, 0, 64 * 1024,  32, SECT_4K) },
+	{ "gd25q32", INFO(0xc84016, 0, 64 * 1024,  64, SECT_4K) },
+	{ "gd25q64", INFO(0xc84017, 0, 64 * 1024, 128, SECT_4K) },
+
 	/* Intel/Numonyx -- xxxs33b */
 	{ "160s33b",  INFO(0x898911, 0, 64 * 1024,  32, 0) },
 	{ "320s33b",  INFO(0x898912, 0, 64 * 1024,  64, 0) },
@@ -756,14 +788,63 @@ static const struct spi_device_id m25p_ids[] = {
 };
 MODULE_DEVICE_TABLE(spi, m25p_ids);
 
-static struct mtd_partition partitions[] =
+#ifdef CONFIG_ARCH_SUN8IW8
+static int partitions_register(struct mtd_info *mtd, struct mtd_part_parser_data *ppdata)
 {
+	int i;
+	int ret = 0;
+    size_t retlen = 0;
+	MBR *sunxi_mbr = NULL;
+	struct mtd_partition *partitions = NULL;
+
+	sunxi_mbr = (MBR *)kzalloc(MBR_SIZE, GFP_KERNEL);
+	if (sunxi_mbr == NULL) {
+		M25_ERR("Failed to kzalloc(%d)\n", MBR_SIZE);
+		return -ENOMEM;
+	}
+
+	ret = m25p80_read(mtd, MBR_OFFSET, MBR_SIZE, &retlen, (u_char *)sunxi_mbr);
+	M25_DBG("m25p80_read() ret= %d, retlen = %d\n", ret, retlen);
+	if (ret != 0) {
+		kfree(sunxi_mbr);
+		M25_ERR("m25p80_read() ret= %d\n", ret);
+		return -EINVAL;
+	}
+
+	partitions = kzalloc(sizeof(struct mtd_partition)*sunxi_mbr->PartCount, GFP_KERNEL);
+	if (partitions == NULL) {
+		M25_ERR("Failed to kzalloc(%d patition)\n", sunxi_mbr->PartCount);
+		kfree(sunxi_mbr);
+		return -ENOMEM;
+	}
+
+	for (i=0; i<sunxi_mbr->PartCount-1; i++) {
+		partitions[i].name   = sunxi_mbr->array[i].name;
+		partitions[i].offset = sunxi_mbr->array[i].addrlo*NOR_BLK_SIZE + MBR_OFFSET;
+		partitions[i].size   = sunxi_mbr->array[i].lenlo*NOR_BLK_SIZE;
+		printk("NorFlash partition %d: name=%s, offset=0x%llx, size=0x%llx\n", i,
+			partitions[i].name, partitions[i].offset, partitions[i].size);
+	}
+
+	ret = mtd_device_parse_register(mtd, NULL, ppdata, partitions, sunxi_mbr->PartCount-1);
+
+	kfree(partitions);
+	kfree(sunxi_mbr);
+	return ret;
+}
+#else
+static int partitions_register(struct mtd_info *mtd, struct mtd_part_parser_data *ppdata)
+{
+	struct mtd_partition partitions[] = {
 		{
 		.name = "NorFlash part0",
 		.offset = 0,
 		.size = MTDPART_SIZ_FULL
-		}
-};
+		}};
+
+	return mtd_device_parse_register(mtd, NULL, ppdata, partitions, 1);
+}
+#endif
 
 static const struct spi_device_id *__devinit jedec_probe(struct spi_device *spi)
 {
@@ -972,8 +1053,7 @@ static int __devinit m25p_probe(struct spi_device *spi)
 			data ? data->parts : NULL,
 			data ? data->nr_parts : 0);
 #else
-	return mtd_device_parse_register(&flash->mtd, NULL, &ppdata,
-			partitions, ARRAY_SIZE(partitions));
+	return partitions_register(&flash->mtd, &ppdata);
 #endif
 }
 

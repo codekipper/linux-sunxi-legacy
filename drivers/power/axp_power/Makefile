@@ -19,6 +19,7 @@ obj-$(CONFIG_AW_AXP15) += axp15-board.o
 obj-$(CONFIG_AW_AXP15) += axp15-regu.o
 obj-$(CONFIG_AW_AXP15) += virtual15.o
 obj-$(CONFIG_AW_AXP15) += virtual15_dev.o
+obj-$(CONFIG_AXP15_IRQ)+= axp15-irq.o
 #AXP81x
 obj-$(CONFIG_AW_AXP81X) += axp81x/axp81x-board.o
 obj-$(CONFIG_AW_AXP81X) += axp81x/axp81x-board-device.o

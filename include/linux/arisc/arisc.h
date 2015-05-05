@@ -386,6 +386,10 @@ int arisc_axp_get_chip_id(unsigned char *chip_id);
 #if (defined CONFIG_ARCH_SUN8IW5P1)
 int arisc_adjust_pmu_chgcur(unsigned int max_chgcur, unsigned int chg_ic_temp);
 #endif
+
+int arisc_set_led_bln(unsigned long led_rgb, unsigned long led_onms,  \
+                      unsigned long led_offms, unsigned long led_darkms);
+
 /* ====================================audio interface==================================== */
 /**
  * start audio play or capture.
@@ -604,5 +608,6 @@ unsigned int arisc_pmu_get_voltage(u32 type);
 
 /* ====================================debug interface==================================== */
 int arisc_message_loopback(void);
+int arisc_config_ir_paras(u32 ir_code, u32 ir_addr);
 
 #endif	/* __ASM_ARCH_A100_H */

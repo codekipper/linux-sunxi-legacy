@@ -25,7 +25,6 @@
 #include "./../standby_i.h"
 #include <linux/power/aw_pm.h>
 #include <linux/arisc/hwmsgbox.h>
-#include <linux/arisc/hwspinlock.h>
 #include "arisc_cfgs.h"
 #include "arisc_messages.h"
 #include "arisc_dbgs.h"
