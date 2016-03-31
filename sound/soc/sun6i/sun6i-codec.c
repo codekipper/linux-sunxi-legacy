@@ -3099,6 +3099,32 @@ static int snd_sun6i_codec_trigger(struct snd_pcm_substream *substream, int cmd)
 			break;
 		}
 	}
+      {
+        /* COOPS DEBUGGING FOR NOW */
+        u32 reg_val = 0;
+
+        reg_val = readl(baseaddr + SUN6I_DAC_DPC);
+        printk("%s %s 0x%x\n", __func__,
+                        "SUNXI_DAC_DPC", reg_val);
+        reg_val = readl(baseaddr + SUN6I_DAC_FIFOC);
+        printk("%s %s 0x%x\n", __func__,
+                        "SUNXI_DAC_FIFOC", reg_val);
+        reg_val = readl(baseaddr + SUN6I_DAC_FIFOS);
+        printk("%s %s 0x%x\n", __func__,
+                        "SUNXI_DAC_FIFOS", reg_val);
+        reg_val = readl(baseaddr + SUN6I_DAC_ACTL);
+        printk("%s %s 0x%x\n", __func__,
+                        "SUN6I_DAC_ACTL", reg_val);
+        reg_val = readl(baseaddr + SUN6I_PA_CTRL);
+        printk("%s %s 0x%x\n", __func__,
+                        "SUN6I_PA_CTRL", reg_val);
+        reg_val = readl(baseaddr + SUN6I_MIC_CTRL);
+        printk("%s %s 0x%x\n", __func__,
+                        "SUN6I_MIC_CTRL", reg_val);
+        reg_val = readl(baseaddr + SUN6I_DAC_TXCNT);
+        printk("%s %s 0x%x\n", __func__,
+                        "SUN6I_DAC_TXCNT", reg_val);
+        }
 	return 0;
 }
 
